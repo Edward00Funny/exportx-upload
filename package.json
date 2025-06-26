@@ -1,5 +1,6 @@
 {
   "name": "exportx-upload",
+  "version": "0.0.1",
   "scripts": {
     "dev": "wrangler dev -c wrangler.dev.jsonc",
     "dev:node": "tsx watch src/adaptors/server.ts",
