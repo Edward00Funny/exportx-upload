@@ -3,6 +3,13 @@
     - services:
         - docker
       stages:
+        - name: test
+          image: node:22-alpine
+          script: |
+            npm i -g pnpm
+            pnpm install
+            pnpm test
+
         - name: sync to github
           imports:
             - https://cnb.cool/hututux/env/-/blob/main/github/Edward00Funny.yml
@@ -12,6 +19,7 @@
             auth_type: https
             username: ${GIT_USERNAME}
             password: ${GIT_ACCESS_TOKEN}
+
         - name: docker build
           script: docker build -t exportxabfree/exportx-upload:dev .
         - name: docker login
