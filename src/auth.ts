@@ -11,7 +11,7 @@ type AuthContext = {
 }
 
 export const authMiddleware = createMiddleware<AuthContext & { Bindings: Bindings }>(async (c, next) => {
-  const { AUTH_SECRET_KEY, AUTH_TYPE } = env(c)
+  const { AUTH_SECRET_KEY } = env(c)
 
   // If AUTH_SECRET_KEY is not set, deny all requests for security.
   if (!AUTH_SECRET_KEY) {
@@ -44,21 +44,19 @@ export const authMiddleware = createMiddleware<AuthContext & { Bindings: Binding
       return c.json({ error: 'Configuration error for the specified bucket.' }, 500);
     }
 
-    // If AUTH_TYPE is TOKEN_AND_EMAIL_WHITELIST, check email whitelist for the bucket
-    if (AUTH_TYPE === 'TOKEN_AND_EMAIL_WHITELIST') {
-      if (!bucketConfig.emailWhitelist || bucketConfig.emailWhitelist.length === 0) {
-        console.error(`Email whitelist is required for bucket '${bucketName}' when AUTH_TYPE is TOKEN_AND_EMAIL_WHITELIST`);
-        return c.json({ error: 'Service unavailable: Email whitelist not configured for this bucket.' }, 503);
-      }
+    // Check email whitelist for the bucket
+    if (!bucketConfig.emailWhitelist || bucketConfig.emailWhitelist.length === 0) {
+      console.error(`Email whitelist is required for bucket '${bucketName}'`);
+      return c.json({ error: 'Service unavailable: Email whitelist not configured for this bucket.' }, 503);
+    }
 
-      const userEmail = c.req.header('X-User-Email');
-      if (!userEmail) {
-        return c.json({ error: 'Unauthorized: User email required for whitelist validation.' }, 401);
-      }
+    const userEmail = c.req.header('X-User-Email');
+    if (!userEmail) {
+      return c.json({ error: 'Unauthorized: User email required for whitelist validation.' }, 401);
+    }
 
-      if (!bucketConfig.emailWhitelist.includes(userEmail)) {
-        return c.json({ error: 'Unauthorized: Email not in whitelist for this bucket.' }, 403);
-      }
+    if (!bucketConfig.emailWhitelist.includes(userEmail)) {
+      return c.json({ error: 'Unauthorized: Email not in whitelist for this bucket.' }, 403);
     }
 
     // Pass bucket config to the next middleware/handler

@@ -31,7 +31,6 @@
     "BUCKET_wasabi_storage_ALLOWED_PATHS": "images,photos,avatars",
     "BUCKET_wasabi_storage_EMAIL_WHITELIST": "your-email@example.com",
     // --- authentication and other config ---
-    "AUTH_TYPE": "TOKEN_AND_EMAIL_WHITELIST",
     "AUTH_SECRET_KEY": "your_dev_secret_key_here",
     "ALLOWED_ORIGINS": "https://www.figma.com",
     "PORT": "8080"

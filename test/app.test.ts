@@ -29,28 +29,8 @@ test('GET / should return OK', async ({ expect }) => {
   expect(await res.text()).toBe('OK')
 });
 
-test('GET /buckets returns all buckets when auth type is TOKEN', async ({ expect }) => {
+test('GET /buckets returns only whitelisted buckets for the given user email', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
-  vi.stubEnv('AUTH_TYPE', 'TOKEN');
-
-  (getAllBucketsConfig as Mock).mockReturnValue({
-    'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user@example.com'] },
-    'bucket2': { provider: 'AWS_S3' }
-  });
-
-  const req = new Request('http://localhost/buckets', {
-    headers: { 'Authorization': 'Bearer test-secret' }
-  });
-
-  const res = await app.fetch(req);
-  expect(res.status).toBe(200);
-  const data = await res.json() as { buckets: any[] };
-  expect(data.buckets.length).toBe(2);
-});
-
-test('GET /buckets returns only whitelisted buckets when auth type is TOKEN_AND_EMAIL_WHITELIST', async ({ expect }) => {
-  vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
-  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST');
 
   (getAllBucketsConfig as Mock).mockReturnValue({
     'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user1@example.com'] },
@@ -72,9 +52,8 @@ test('GET /buckets returns only whitelisted buckets when auth type is TOKEN_AND_
   expect(data.buckets[0].name).toBe('bucket1');
 });
 
-test('GET /buckets returns empty list if email is not provided when required', async ({ expect }) => {
+test('GET /buckets returns empty list if email is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
-  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST');
 
   (getAllBucketsConfig as Mock).mockReturnValue({
     'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user@example.com'] },

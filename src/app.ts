@@ -28,24 +28,21 @@ app.get('/', (c) => {
 // Get bucket configurations route
 app.get('/buckets', authMiddleware, async (c) => {
   try {
-    const { AUTH_TYPE } = env(c);
     const allBucketsConfig = getAllBucketsConfig(c);
     let filteredBuckets = allBucketsConfig;
 
-    if (AUTH_TYPE === 'TOKEN_AND_EMAIL_WHITELIST') {
-      const userEmail = c.req.header('X-User-Email');
-      if (!userEmail) {
-        // If email is required but not provided, return no buckets
-        filteredBuckets = {};
-      } else {
-        filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
-          // A bucket is only accessible if it has a whitelist and the user is in it.
-          if (config.emailWhitelist && config.emailWhitelist.includes(userEmail)) {
-            acc[bucketName] = config;
-          }
-          return acc;
-        }, {} as Record<string, typeof allBucketsConfig[string]>);
-      }
+    const userEmail = c.req.header('X-User-Email');
+    if (!userEmail) {
+      // If email is required but not provided, return no buckets
+      filteredBuckets = {};
+    } else {
+      filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
+        // A bucket is only accessible if it has a whitelist and the user is in it.
+        if (config.emailWhitelist && config.emailWhitelist.includes(userEmail)) {
+          acc[bucketName] = config;
+        }
+        return acc;
+      }, {} as Record<string, typeof allBucketsConfig[string]>);
     }
 
     // Build public configuration information, hiding sensitive data

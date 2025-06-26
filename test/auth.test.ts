@@ -77,9 +77,8 @@ test('authMiddleware should return 400 if bucket is specified but config is miss
   expect(res.status).toBe(500) // 500 for config error
 })
 
-test('authMiddleware should return 503 if email whitelist is required but not configured on bucket', async ({ expect }) => {
+test('authMiddleware should return 503 if email whitelist is not configured on bucket', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST')
   // Stub bucket config WITHOUT email whitelist
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
@@ -97,9 +96,8 @@ test('authMiddleware should return 503 if email whitelist is required but not co
   expect(await res.json()).toEqual({ error: 'Service unavailable: Email whitelist not configured for this bucket.' })
 })
 
-test('authMiddleware should return 401 if email is required but not provided', async ({ expect }) => {
+test('authMiddleware should return 401 if email is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
   vi.stubEnv('BUCKET_test_bucket_EMAIL_WHITELIST', 'test@example.com')
@@ -117,7 +115,6 @@ test('authMiddleware should return 401 if email is required but not provided', a
 
 test('authMiddleware should return 403 if email is not in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
   vi.stubEnv('BUCKET_test_bucket_EMAIL_WHITELIST', 'test@example.com')
@@ -139,7 +136,6 @@ test('authMiddleware should return 403 if email is not in bucket whitelist', asy
 
 test('authMiddleware should call next() for valid token and email in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
   vi.stubEnv('BUCKET_test_bucket_EMAIL_WHITELIST', 'test@example.com')

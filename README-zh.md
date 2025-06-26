@@ -104,14 +104,13 @@
 | --- | --- | --- | --- |
 | `BUCKET_{name}_*` | | 是 | 用于定义一个存储桶。例如 `BUCKET_main_r2_PROVIDER`。详细配置请看 `wrangler.jsonc`。 |
 | `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | 否 | 允许上传的路径列表，逗号分隔。`*` 表示允许所有路径。 |
-| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | 否 | 针对此存储桶的邮箱白名单，逗号分隔。当 `AUTH_TYPE` 为 `TOKEN_AND_EMAIL_WHITELIST` 时，此存储桶的白名单为必填项。 |
+| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | 否 | 针对此存储桶的邮箱白名单，逗号分隔。白名单为必填项。 |
 
 ### 全局认证配置
 
 | 环境变量 | 示例值 | 是否必需 | 描述 |
 | --- | --- | --- | --- |
 | `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | 是 | 用于验证请求合法性的共享密钥。可以是一个或多个密钥，用逗号分隔。 |
-| `AUTH_TYPE` | `TOKEN_AND_EMAIL_WHITELIST` | 否 | 认证类型。`TOKEN` (默认) 或 `TOKEN_AND_EMAIL_WHITELIST`。 |
 | `ALLOWED_ORIGINS` | `https://www.figma.com` | 否 | 允许的跨域请求来源。默认值为 `*` (允许所有)。 |
 | `PORT` | `8080` | 否 | Node.js 服务器监听端口（仅限 Docker）。 |
 
@@ -149,7 +148,7 @@
 | Header | Type | Required | Description |
 | --- | --- | --- | --- |
 | `Authorization` | `string` | 是 | Bearer Token。格式为 `Bearer {AUTH_SECRET_KEY}`。 |
-| `X-User-Email` | `string` | 否 | 发起请求的用户的邮箱。当 `AUTH_TYPE` 设置为 `TOKEN_AND_EMAIL_WHITELIST` 时，此项为必需，用于邮箱白名单验证。 |
+| `X-User-Email` | `string` | 是 | 发起请求的用户的邮箱。用于邮箱白名单验证。 |
 
 ##### 成功响应 (`200 OK`)
 ```json

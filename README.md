@@ -113,7 +113,6 @@ This service is configured entirely through environment variables. Please refer 
 | Environment Variable | Example Value | Required | Description |
 | --- | --- | --- | --- |
 | `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | Yes | Shared secret key for validating request legitimacy. Can be one or more keys, comma-separated. |
-| `AUTH_TYPE` | `TOKEN_AND_EMAIL_WHITELIST` | No | Authentication type. `TOKEN` (default) or `TOKEN_AND_EMAIL_WHITELIST`. |
 | `ALLOWED_ORIGINS` | `https://www.figma.com` | No | Allowed cross-origin request sources. Defaults to `*` (allow all). |
 | `PORT` | `8080` | No | Node.js server listening port (Docker only). |
 
@@ -151,7 +150,7 @@ Uploads a file to the specified bucket.
 | Header | Type | Required | Description |
 | --- | --- | --- | --- |
 | `Authorization` | `string` | Yes | Bearer Token. Format: `Bearer {AUTH_SECRET_KEY}`. |
-| `X-User-Email` | `string` | No | The email of the user making the request. Required when `AUTH_TYPE` is `TOKEN_AND_EMAIL_WHITELIST` for email whitelist validation. |
+| `X-User-Email` | `string` | Yes | The email of the user making the request. Required for email whitelist validation. |
 
 ##### Success Response (`200 OK`)
 ```json

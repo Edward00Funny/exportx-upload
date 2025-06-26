@@ -31,13 +31,6 @@ export type Bindings = {
 
   // --- Authentication configuration ---
   /**
-   * Authentication type
-   * @example "TOKEN"
-   * @example "TOKEN_AND_EMAIL_WHITELIST"
-   */
-  AUTH_TYPE: 'TOKEN' | 'TOKEN_AND_EMAIL_WHITELIST';
-
-  /**
    * Shared authentication secret key for verifying request legitimacy
    * @example "a_very_long_and_secure_string"
    */
