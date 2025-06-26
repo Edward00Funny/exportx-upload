@@ -2,7 +2,8 @@
   "name": "exportx-upload",
   "scripts": {
     "dev": "wrangler dev -c wrangler.dev.jsonc",
-    "deploy": "wrangler deploy adaptors/worker.ts",
+    "dev:node": "tsx watch src/adaptors/server.ts",
+    "deploy": "wrangler deploy src/adaptors/worker.ts",
     "build": "tsc",
     "start": "node dist/adaptors/server.js",
     "cf-typegen": "wrangler types"
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
     "@types/node": "^24.0.4",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "wrangler": "^4.4.0"
   }
