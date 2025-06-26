@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "exportx-upload",
+  "main": "adaptors/worker.ts",
+  "compatibility_date": "2025-06-25",
+  "vars": {
+    "STORAGE_PROVIDER": "CLOUDFLARE_R2",
+    "S3_ACCESS_KEY_ID": "your_ak_string",
+    "S3_SECRET_ACCESS_KEY": "your_sk_string",
+    "S3_BUCKET_NAME": "my-image-bucket",
+    "S3_ENDPOINT": "https://<accountid>.r2.cloudflarestorage.com",
+    "AUTH_TYPE": "TOKEN_AND_EMAIL_WHITELIST",
+    "AUTH_SECRET_KEY": "your_dev_secret_key_here",
+    "EMAIL_WHITELIST": "your-email@example.com",
+    "CUSTOM_DOMAIN": "http://localhost:8787",
+    "ALLOWED_ORIGINS": "https://www.figma.com",
+    "PORT": "8080"
+  },
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "my-bucket"
+    }
+  ]
+}

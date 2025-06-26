@@ -1,0 +1,12 @@
+'**':
+  push:
+    - stages:
+        - name: sync to github
+          imports:
+            - https://cnb.cool/hututux/env/-/blob/main/github/Edward00Funny.yml
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/Edward00Funny/exportx-upload.git
+            auth_type: https
+            username: ${GIT_USERNAME}
+            password: ${GIT_ACCESS_TOKEN}
