@@ -77,18 +77,13 @@
 2.  **运行容器：**
     使用 `-e` 标志提供所有必要的环境变量。
     ```bash
-    docker run -d -p 8080:8080 \
-      -e PORT=8080 \
-      -e AUTH_TYPE="TOKEN" \
-      -e AUTH_SECRET_KEY="您的密钥令牌,队友的另一个令牌" \
-      -e BUCKET_my_s3_bucket_PROVIDER="AWS_S3" \
-      -e BUCKET_my_s3_bucket_ACCESS_KEY_ID="您的aws密钥id" \
-      -e BUCKET_my_s3_bucket_SECRET_ACCESS_KEY="您的aws密钥" \
-      -e BUCKET_my_s3_bucket_BUCKET_NAME="您的s3存储桶名称" \
-      -e BUCKET_my_s3_bucket_REGION="您的s3存储桶区域" \
-      -e BUCKET_my_s3_bucket_ENDPOINT="https://s3.us-east-1.amazonaws.com" \
-      --name exportx-uploader-instance \
-      exportx-uploader
+    docker run --rm -p 8080:8080 \
+      -e AUTH_SECRET_KEY="your_secure_secret_key" \
+      -e BUCKET_main_r2_PROVIDER="CLOUDFLARE_R2" \
+      -e BUCKET_main_r2_BINDING_NAME="R2_MAIN_BUCKET" \
+      -e BUCKET_main_r2_EMAIL_WHITELIST="your-email@example.com" \
+      -v /path/to/your/cloudflare/creds:/root/.wrangler \
+      exportx-upload:latest
     ```
     您的服务将在 `http://localhost:8080` 可用。
 
@@ -169,3 +164,7 @@
 npm install
 npm run dev
 ```
+
+## 许可证
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.

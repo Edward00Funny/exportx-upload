@@ -105,8 +105,8 @@ This service is configured entirely through environment variables. Please refer 
 | Variable | Example Value | Required | Description |
 | --- | --- | --- | --- |
 | `BUCKET_{name}_*` | | Yes | Defines a bucket. For example, `BUCKET_main_r2_PROVIDER`. See `wrangler.jsonc` for details. |
-| `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | No | Comma-separated list of allowed upload paths. `*` allows all paths. |
-| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | No | Comma-separated email whitelist for this bucket. Required for this bucket if `AUTH_TYPE` is `TOKEN_AND_EMAIL_WHITELIST`. |
+| `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | No | List of allowed upload paths, comma-separated. `*` allows all paths. |
+| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | No | Email whitelist for this bucket, comma-separated. This whitelist is required for the bucket to be accessible. |
 
 ### Global Authentication Configuration
 
