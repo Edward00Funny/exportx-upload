@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { env } from 'hono/adapter'
-import { Bindings } from './bindings'
+import type { Bindings } from './bindings'
 import { authMiddleware } from './auth'
-import { uploadFile, UploadOptions } from './storage'
+import { uploadFile, UploadOptions, getAllBucketsConfig } from './storage'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -25,6 +25,40 @@ app.get('/', (c) => {
   return c.text('OK')
 })
 
+// Get bucket configurations route
+app.get('/buckets', authMiddleware, async (c) => {
+  try {
+    const bucketsConfig = getAllBucketsConfig(c);
+
+    // Build public configuration information, hiding sensitive data
+    const publicConfig = Object.entries(bucketsConfig).map(([bucketName, config]) => ({
+      name: bucketName,
+      provider: config.provider,
+      bucketName: config.bucketName,
+      region: config.region,
+      endpoint: config.endpoint?.replace(/\/+$/, ''), // Remove trailing slashes
+      customDomain: config.customDomain?.replace(/\/+$/, ''), // Remove trailing slashes
+      bindingName: config.bindingName,
+      alias: config.alias || bucketName, // Use alias or bucket name
+      allowedPaths: config.allowedPaths || ['*'], // Return allowed paths
+      // Do not return sensitive information like accessKeyId and secretAccessKey
+    }));
+
+    return c.json({
+      success: true,
+      buckets: publicConfig,
+      defaultBucket: c.env.DEFAULT_BUCKET_CONFIG_NAME
+    });
+  } catch (error: any) {
+    console.error('Failed to get bucket configuration:', error.message);
+    return c.json({
+      success: false,
+      error: 'Failed to get bucket configuration',
+      message: error.message
+    }, 500);
+  }
+})
+
 // Upload route
 app.post('/upload', authMiddleware, async (c) => {
   try {
@@ -33,15 +67,23 @@ app.post('/upload', authMiddleware, async (c) => {
     const path = formData.get('path')?.toString();
     const fileName = formData.get('fileName')?.toString();
     const overwrite = formData.get('overwrite')?.toString() === 'true';
+    const bucket = formData.get('bucket')?.toString(); // Get bucket logical name from form data
 
     if (!file || typeof file.arrayBuffer !== 'function') {
-      return c.json({ error: 'No file provided or the form data is incorrect.' }, 400)
+      return c.json({ error: 'No file provided or form data is incorrect.' }, 400)
+    }
+    if (!bucket) {
+      return c.json({ success: false, error: 'bucket is required.' }, 400);
+    }
+    if (!path) {
+      return c.json({ success: false, error: 'path is required.' }, 400);
     }
 
     const options: UploadOptions = {
       path,
       fileName,
       overwrite,
+      bucket, // Add bucket parameter to options
     };
 
     const result = await uploadFile(c, file, options)

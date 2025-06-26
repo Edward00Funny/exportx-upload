@@ -1,8 +1,33 @@
 import { Context } from 'hono';
 import { HeadObjectCommand, S3, S3ClientConfig } from '@aws-sdk/client-s3';
 import { env } from 'hono/adapter'
-import { Bindings } from './bindings';
+import { type Bindings, BucketConfig } from './bindings';
 import to from 'await-to-js';
+
+// R2Bucket types are provided by Cloudflare Workers runtime
+declare global {
+  interface R2Bucket {
+    head(key: string): Promise<R2Object | null>;
+    put(key: string, value: ArrayBuffer | ReadableStream, options?: R2PutOptions): Promise<R2Object>;
+  }
+
+  interface R2Object {
+    key: string;
+    size: number;
+    etag: string;
+  }
+
+  interface R2PutOptions {
+    httpMetadata?: {
+      contentType?: string;
+      contentLanguage?: string;
+      contentDisposition?: string;
+      contentEncoding?: string;
+      cacheControl?: string;
+      cacheExpiry?: Date;
+    };
+  }
+}
 
 export type UploadResult = {
   url: string;
@@ -10,9 +35,10 @@ export type UploadResult = {
 };
 
 export type UploadOptions = {
-  path?: string;
+  path: string;
   fileName?: string;
   overwrite?: boolean;
+  bucket: string; // Bucket logical name, e.g. "personal_aws" or "main_r2"
 };
 
 function sanitizePath(path: string): string {
@@ -20,10 +46,83 @@ function sanitizePath(path: string): string {
   return path.replace(/^\/+|\/+$/g, '').replace(/\.\.\//g, '');
 }
 
-async function checkR2FileExists(c: Context<{ Bindings: Bindings }>, key: string): Promise<boolean> {
-  const { R2_BUCKET } = env(c)
-  if (!R2_BUCKET) return false;
-  const object = await R2_BUCKET.head(key);
+/**
+ * Validate if the path is allowed
+ */
+function validatePath(requestedPath: string, allowedPaths: string[]): boolean {
+  // If all paths are allowed
+  if (allowedPaths.includes('*')) {
+    return true;
+  }
+
+  // Clean the requested path
+  const cleanPath = sanitizePath(requestedPath);
+
+  // If no path (root directory upload), check if empty path is allowed
+  if (!cleanPath) {
+    return allowedPaths.includes('') || allowedPaths.includes('/');
+  }
+
+  // Get top-level path
+  const topLevelPath = cleanPath.split('/')[0];
+
+  // Check if it's in the allowed paths
+  return allowedPaths.some(allowedPath => {
+    const cleanAllowedPath = sanitizePath(allowedPath);
+    // Exact match or as a subpath
+    return topLevelPath === cleanAllowedPath || cleanPath.startsWith(cleanAllowedPath + '/');
+  });
+}
+
+/**
+ * Get bucket configuration from environment variables
+ */
+function getBucketConfig(c: Context<{ Bindings: Bindings }>, bucketName: string): BucketConfig {
+  const envVars = env(c);
+
+  // Build environment variable prefix
+  const prefix = `BUCKET_${bucketName}_`;
+
+  // Read bucket configuration
+  const provider = envVars[`${prefix}PROVIDER`] as 'CLOUDFLARE_R2' | 'AWS_S3';
+  if (!provider) {
+    throw new Error(`Bucket configuration '${bucketName}' not found. Please check if environment variable ${prefix}PROVIDER is set.`);
+  }
+
+  const config: BucketConfig = {
+    provider,
+    bucketName: envVars[`${prefix}BUCKET_NAME`],
+    accessKeyId: envVars[`${prefix}ACCESS_KEY_ID`],
+    secretAccessKey: envVars[`${prefix}SECRET_ACCESS_KEY`],
+    region: envVars[`${prefix}REGION`],
+    endpoint: envVars[`${prefix}ENDPOINT`],
+    customDomain: envVars[`${prefix}CUSTOM_DOMAIN`],
+    bindingName: envVars[`${prefix}BINDING_NAME`], // Only for R2
+    alias: envVars[`${prefix}ALIAS`], // Bucket alias
+    allowedPaths: envVars[`${prefix}ALLOWED_PATHS`] ?
+      envVars[`${prefix}ALLOWED_PATHS`].split(',').map((path: string) => path.trim()) :
+      ['*'], // Default to allow all paths
+  };
+
+  // Validate configuration completeness
+  if (provider === 'AWS_S3') {
+    if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
+      throw new Error(`S3 bucket configuration '${bucketName}' is incomplete. Required: ${prefix}ACCESS_KEY_ID, ${prefix}SECRET_ACCESS_KEY, ${prefix}BUCKET_NAME`);
+    }
+    if (!config.endpoint || !config.region) {
+      throw new Error(`S3 bucket configuration '${bucketName}' is incomplete. Required: ${prefix}ENDPOINT, ${prefix}REGION`);
+    }
+  } else if (provider === 'CLOUDFLARE_R2') {
+    if (!config.bindingName) {
+      throw new Error(`R2 bucket configuration '${bucketName}' is incomplete. Required: ${prefix}BINDING_NAME`);
+    }
+  }
+
+  return config;
+}
+
+async function checkR2FileExists(r2Bucket: R2Bucket, key: string): Promise<boolean> {
+  const object = await r2Bucket.head(key);
   return object !== null;
 }
 
@@ -35,11 +134,15 @@ async function checkS3FileExists(s3Client: S3, bucket: string, key: string): Pro
   return err === null;
 }
 
-async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
-  const { R2_BUCKET, CUSTOM_DOMAIN } = env(c)
+async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
+  if (!config.bindingName) {
+    throw new Error('R2 configuration error: missing bindingName');
+  }
 
-  if (!R2_BUCKET) {
-    throw new Error('R2_BUCKET is not configured in the environment.');
+  // Get R2 bucket binding
+  const r2Bucket = c.env[config.bindingName] as R2Bucket;
+  if (!r2Bucket) {
+    throw new Error(`R2 bucket binding '${config.bindingName}' not found. Please check r2_buckets configuration in wrangler.jsonc.`);
   }
 
   const path = options.path ? sanitizePath(options.path) : '';
@@ -47,63 +150,49 @@ async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, option
   const fileKey = path ? `${path}/${fileName}` : fileName;
 
   if (!options.overwrite) {
-    const exists = await checkR2FileExists(c, fileKey);
+    const exists = await checkR2FileExists(r2Bucket, fileKey);
     if (exists) {
       throw new Error(`File '${fileKey}' already exists. Use overwrite option to replace it.`);
     }
   }
 
   const [err] = await to(
-    R2_BUCKET.put(fileKey, await file.arrayBuffer(), {
+    r2Bucket.put(fileKey, await file.arrayBuffer(), {
       httpMetadata: { contentType: file.type },
     })
   );
 
   if (err) {
-    throw new Error('Failed to upload to R2: ' + err.message);
+    throw new Error('Upload to R2 failed: ' + err.message);
   }
 
-  const baseUrl = CUSTOM_DOMAIN || '';
-  const url = baseUrl ? `${baseUrl}/${fileKey}` : `/files/${fileKey}`; // Adjusted for custom domain
+  // Generate access URL
+  let url: string;
+  if (config.customDomain) {
+    url = `${config.customDomain}/${fileKey}`;
+  } else {
+    url = `/files/${fileKey}`; // Default path
+  }
+
   return { url, fileName: file.name };
 }
 
-async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
-  const {
-    S3_ACCESS_KEY_ID,
-    S3_SECRET_ACCESS_KEY,
-    S3_BUCKET_NAME,
-    S3_ENDPOINT,
-    S3_REGION,
-    CUSTOM_DOMAIN,
-  } = env(c)
-
-  // Use new environment variable names first, fallback to legacy names
-  const accessKeyId = S3_ACCESS_KEY_ID;
-  const secretAccessKey = S3_SECRET_ACCESS_KEY;
-  const bucketName = S3_BUCKET_NAME;
-  const endpoint = S3_ENDPOINT;
-  const region = S3_REGION;
-
-  if (!accessKeyId || !secretAccessKey || !bucketName) {
-    throw new Error('S3 environment variables (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME) are not fully configured.');
-  }
-  if (!endpoint || !region) {
-    throw new Error('S3_ENDPOINT or S3_REGION is not configured in the environment.');
+async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
+  if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName || !config.endpoint || !config.region) {
+    throw new Error('S3 configuration incomplete');
   }
 
   const s3ClientConfig: S3ClientConfig = {
-    region,
+    region: config.region,
     credentials: {
-      accessKeyId,
-      secretAccessKey,
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
     },
   };
 
-  // If custom endpoint is provided (e.g., for Cloudflare R2 via S3 API)
-  if (endpoint) {
-    s3ClientConfig.endpoint = endpoint;
-    // s3ClientConfig.forcePathStyle = true;
+  // Set custom endpoint (for Cloudflare R2 via S3 API or other S3-compatible services)
+  if (config.endpoint) {
+    s3ClientConfig.endpoint = config.endpoint;
   }
 
   const s3Client = new S3(s3ClientConfig);
@@ -113,7 +202,7 @@ async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, option
   const fileKey = path ? `${path}/${fileName}` : fileName;
 
   if (!options.overwrite) {
-    const exists = await checkS3FileExists(s3Client, bucketName, fileKey);
+    const exists = await checkS3FileExists(s3Client, config.bucketName, fileKey);
     if (exists) {
       throw new Error(`File '${fileKey}' already exists. Use overwrite option to replace it.`);
     }
@@ -121,7 +210,7 @@ async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, option
 
   const [err] = await to(
     s3Client.putObject({
-      Bucket: bucketName,
+      Bucket: config.bucketName,
       Key: fileKey,
       Body: new Uint8Array(await file.arrayBuffer()),
       ContentType: file.type,
@@ -129,31 +218,70 @@ async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, option
   );
 
   if (err) {
-    throw new Error('Failed to upload to S3: ' + err.message);
+    throw new Error('Upload to S3 failed: ' + err.message);
   }
 
-  // Generate URL based on custom domain or default S3 URL
+  // Generate access URL
   let url: string;
-  const s3Host = endpoint || `https://s3.${region}.amazonaws.com`;
-  if (CUSTOM_DOMAIN) {
-    url = `${CUSTOM_DOMAIN}/${fileKey}`;
+  if (config.customDomain) {
+    url = `${config.customDomain}/${fileKey}`;
   } else {
-    // For custom endpoints like Cloudflare R2 or other S3-compatible services
-    url = `${s3Host}/${bucketName}/${fileKey}`;
+    // Use S3 default URL format
+    url = `${config.endpoint}/${config.bucketName}/${fileKey}`;
   }
 
   return { url, fileName: file.name };
 }
 
+/**
+ * Get all bucket configurations (excluding sensitive data)
+ */
+export function getAllBucketsConfig(c: Context<{ Bindings: Bindings }>): Record<string, BucketConfig> {
+  const envVars = env(c);
+  const buckets: Record<string, BucketConfig> = {};
+
+  // Scan all environment variables starting with BUCKET_
+  const bucketNames = new Set<string>();
+
+  // Extract bucket names from environment variables
+  Object.keys(envVars).forEach(key => {
+    if (key.startsWith('BUCKET_') && key.includes('_PROVIDER')) {
+      const bucketName = key.replace('BUCKET_', '').replace('_PROVIDER', '');
+      bucketNames.add(bucketName);
+    }
+  });
+
+  // Get configuration for each bucket
+  bucketNames.forEach(bucketName => {
+    try {
+      buckets[bucketName] = getBucketConfig(c, bucketName);
+    } catch (error: any) {
+      console.warn(`Unable to get bucket configuration '${bucketName}':`, error.message);
+    }
+  });
+
+  return buckets;
+}
+
+/**
+ * Upload file to the specified storage
+ */
 export async function uploadFile(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
-  const { STORAGE_PROVIDER } = env(c)
-  const provider = STORAGE_PROVIDER?.toUpperCase();
-  switch (provider) {
-    case 'CLOUDFLARE_R2':
-      return uploadToR2(c, file, options);
-    case 'AWS_S3':
-      return uploadToS3(c, file, options);
-    default:
-      throw new Error(`Invalid or no STORAGE_PROVIDER configured. Set it to 'CLOUDFLARE_R2' or 'AWS_S3'.`);
+  // Bucket is now a required parameter, get its config
+  // getBucketConfig will throw an error if the configuration is not found
+  const config = getBucketConfig(c, options.bucket);
+
+  // Path is also a required parameter, validate it against allowed paths
+  if (!validatePath(options.path, config.allowedPaths || ['*'])) {
+    throw new Error(`Path '${options.path}' is not allowed for bucket '${options.bucket}'`);
   }
+
+  // Upload to the specified storage provider
+  if (config.provider === 'CLOUDFLARE_R2') {
+    return uploadToR2(c, file, config, options);
+  } else if (config.provider === 'AWS_S3') {
+    return uploadToS3(c, file, config, options);
+  }
+
+  throw new Error(`Unsupported storage provider: ${config.provider}`);
 } 

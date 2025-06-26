@@ -1,51 +1,40 @@
 export type Bindings = {
-  /**
-   * Cloudflare R2 Bucket binding.
-   * This is automatically provided by the Cloudflare platform.
-   * In wrangler.jsonc, you should have something like:
-   * [[r2_buckets]]
-   * binding = "R2_BUCKET"
-   * bucket_name = "my-bucket-name"
-   */
-  R2_BUCKET: R2Bucket;
+  // Allow accessing dynamically configured bucket-related environment variables via string index
+  [key: string]: any;
 
   /**
-   * Storage provider type.
-   * @example "CLOUDFLARE_R2"
-   * @example "AWS_S3"
+   * Default bucket configuration name to use
+   * @example "personal_aws"
+   * @example "main_r2"
    */
-  STORAGE_PROVIDER: 'CLOUDFLARE_R2' | 'AWS_S3';
-
-  // --- S3 compatible storage configuration ---
-  /**
-   * S3 compatible storage Access Key
-   * @example "your_ak_string"
-   */
-  S3_ACCESS_KEY_ID?: string;
+  DEFAULT_BUCKET_CONFIG_NAME?: string;
 
   /**
-   * S3 compatible storage Secret Key
-   * @example "your_sk_string"
+   * Dynamic bucket configuration - using prefix pattern
+   * Format: BUCKET_{logical_name}_{attribute_name}
+   * 
+   * Example configuration:
+   * - BUCKET_personal_aws_PROVIDER: "AWS_S3"
+   * - BUCKET_personal_aws_ACCESS_KEY_ID: "..."
+   * - BUCKET_personal_aws_SECRET_ACCESS_KEY: "..."
+   * - BUCKET_personal_aws_BUCKET_NAME: "my-bucket"
+   * - BUCKET_personal_aws_REGION: "us-east-1"
+   * - BUCKET_personal_aws_ENDPOINT: "https://s3.amazonaws.com"
+   * - BUCKET_personal_aws_CUSTOM_DOMAIN: "https://images.example.com"
+   * - BUCKET_personal_aws_ALIAS: "Personal Image Storage"
+   * - BUCKET_personal_aws_ALLOWED_PATHS: "images,documents,uploads"
+   * 
+   * - BUCKET_main_r2_PROVIDER: "CLOUDFLARE_R2"
+   * - BUCKET_main_r2_BINDING_NAME: "R2_MAIN_BINDING"
+   * - BUCKET_main_r2_ALIAS: "Main File Storage"
+   * - BUCKET_main_r2_ALLOWED_PATHS: "*" or "public,assets"
    */
-  S3_SECRET_ACCESS_KEY?: string;
 
   /**
-   * S3 compatible storage bucket name
-   * @example "my-image-bucket"
+   * Cloudflare R2 Bucket bindings (dynamic bindings)
+   * These are bindings configured in r2_buckets in wrangler.jsonc
    */
-  S3_BUCKET_NAME?: string;
-
-  /**
-   * S3 compatible storage endpoint
-   * @example "https://<accountid>.r2.cloudflarestorage.com"
-   */
-  S3_ENDPOINT?: string;
-
-  /**
-   * S3 compatible storage region
-   * @example "us-east-1"
-   */
-  S3_REGION?: string;
+  R2_BUCKET?: R2Bucket;
 
   // --- Authentication configuration ---
   /**
@@ -70,8 +59,9 @@ export type Bindings = {
 
   // --- Additional configuration ---
   /**
-   * Custom access domain
+   * Custom access domain (global default)
    * @example "https://images.mycompany.com"
+   * @deprecated Please use BUCKET_{name}_CUSTOM_DOMAIN instead
    */
   CUSTOM_DOMAIN?: string;
 
@@ -86,4 +76,20 @@ export type Bindings = {
    * @example "8080"
    */
   PORT?: string;
+};
+
+/**
+ * Configuration information for a single bucket
+ */
+export type BucketConfig = {
+  provider: 'CLOUDFLARE_R2' | 'AWS_S3';
+  bucketName?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region?: string;
+  endpoint?: string;
+  customDomain?: string;
+  bindingName?: string; // Only for Cloudflare R2
+  alias?: string; // Bucket alias for user-friendly display
+  allowedPaths?: string[]; // List of allowed paths, e.g. ["images", "documents"] or ["*"] for all paths
 }; 

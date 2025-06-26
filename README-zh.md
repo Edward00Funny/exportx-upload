@@ -41,6 +41,7 @@
 2.  **配置 `wrangler.jsonc`：**
     - 将 `wrangler.jsonc.example` 重命名为 `wrangler.jsonc`（如果适用）。
     - 设置您的 worker `name` 和 `account_id`。
+    - 在 `[vars]` 段落下配置你的存储桶和认证信息。关于如何配置，请参考 `wrangler.jsonc` 文件中的注释。
     - 配置您的 R2 存储桶绑定：
       ```json
       [[r2_buckets]]
@@ -48,15 +49,7 @@
       bucket_name = "您的r2存储桶名称"
       ```
 
-3.  **设置环境变量：**
-    打开 `wrangler.jsonc` 并将您的密钥添加到 `[vars]` 部分。
-    ```json
-    [vars]
-    AUTH_TOKEN = "您的figma密钥令牌"
-    STORAGE_PROVIDER = "R2"
-    ```
-
-4.  **部署：**
+3.  **部署：**
     ```bash
     pnpm install
     pnpm run deploy
@@ -65,6 +58,10 @@
 
 ### 2. Docker（Google Cloud Run、DigitalOcean 等）
 
+
+![Docker Image Version](https://img.shields.io/docker/v/exportxabfree/exportx-upload%3Adev)
+
+
 使用此方法在任何支持 Docker 容器的平台上部署服务。
 
 **前置要求：**
@@ -72,44 +69,43 @@
 
 **步骤：**
 
-1.  **构建 Docker 镜像：**
+1.  **拉取 Docker 镜像：**
     ```bash
-    docker build -t exportx-uploader .
+    docker pull exportxabfree/exportx-upload:dev
     ```
 
 2.  **运行容器：**
     使用 `-e` 标志提供所有必要的环境变量。
     ```bash
-    docker run -d -p 3000:3000 \
-      -e PORT=3000 \
-      -e AUTH_TOKEN="您的密钥令牌,队友的另一个令牌" \
-      -e STORAGE_PROVIDER="S3" \
-      -e AWS_ACCESS_KEY_ID="您的aws密钥id" \
-      -e AWS_SECRET_ACCESS_KEY="您的aws密钥" \
-      -e AWS_S3_BUCKET="您的s3存储桶名称" \
-      -e AWS_S3_REGION="您的s3存储桶区域" \
+    docker run -d -p 8080:8080 \
+      -e PORT=8080 \
+      -e AUTH_TYPE="TOKEN" \
+      -e AUTH_SECRET_KEY="您的密钥令牌,队友的另一个令牌" \
+      -e DEFAULT_BUCKET_CONFIG_NAME="my_s3_bucket" \
+      -e BUCKET_my_s3_bucket_PROVIDER="AWS_S3" \
+      -e BUCKET_my_s3_bucket_ACCESS_KEY_ID="您的aws密钥id" \
+      -e BUCKET_my_s3_bucket_SECRET_ACCESS_KEY="您的aws密钥" \
+      -e BUCKET_my_s3_bucket_BUCKET_NAME="您的s3存储桶名称" \
+      -e BUCKET_my_s3_bucket_REGION="您的s3存储桶区域" \
+      -e BUCKET_my_s3_bucket_ENDPOINT="https://s3.us-east-1.amazonaws.com" \
       --name exportx-uploader-instance \
       exportx-uploader
     ```
-    您的服务将在 `http://localhost:3000` 可用。
+    您的服务将在 `http://localhost:8080` 可用。
 
 ---
 
 ## 配置
 
-该服务完全通过环境变量进行配置。
+该服务完全通过环境变量进行配置。请参考 `wrangler.jsonc` 中的注释来进行详细配置。
 
 | 变量                      | 示例值                                              | 必需 | 描述                                                                                           |
 | ------------------------- | -------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------- |
-| `STORAGE_PROVIDER`        | `CLOUDFLARE_R2`或`AWS_S3`                                   | 是   | 存储提供商类型。                                                                               |
-| `S3_ACCESS_KEY_ID`        | `your_ak_string`                                  | 否   | S3兼容存储的Access Key。                                                                      |
-| `S3_SECRET_ACCESS_KEY`    | `your_sk_string`                                  | 否   | S3兼容存储的Secret Key。                                                                      |
-| `S3_BUCKET_NAME`          | `my-image-bucket`                                 | 否   | 存储桶名称。                                                                                   |
-| `S3_ENDPOINT`             | `https://<accountid>.r2.cloudflarestorage.com`   | 否   | 存储服务的Endpoint。                                                                          |
+| `DEFAULT_BUCKET_CONFIG_NAME` | `main_r2` | 是 | 默认使用的存储桶配置名称。 |
+| `BUCKET_{name}_*` | | 是 | 用于定义一个存储桶。例如 `BUCKET_main_r2_PROVIDER`。详细配置请看 `wrangler.jsonc`。 |
 | `AUTH_TYPE`               | `TOKEN_AND_EMAIL_WHITELIST`                      | 是   | 认证类型。明确指定使用"密钥+白名单"模式。其他可选值可以是TOKEN（仅密钥）。                      |
 | `AUTH_SECRET_KEY`         | `a_very_long_and_secure_string`                  | 是   | 共享认证密钥。用于验证请求来源的合法性。                                                       |
 | `EMAIL_WHITELIST`         | `user1@co.com,user2@co.com`                      | 否   | 邮箱白名单。当AUTH_TYPE为TOKEN_AND_EMAIL_WHITELIST时必填。逗号分隔的邮箱列表。                 |
-| `CUSTOM_DOMAIN`           | `https://images.mycompany.com`                    | 否   | 自定义访问域名。                                                                               |
 | `ALLOWED_ORIGINS`         | `https://www.figma.com`                           | 否   | 允许的跨域访问来源。                                                                           |
 | `PORT`                    | `8080`                                            | 否   | Node.js 服务器监听的端口。默认为 `3000`。（仅Docker）                                         |
 
@@ -134,7 +130,8 @@
 | 字段 | 类型 | 必需 | 描述 |
 | :--- | :--- | :--- | :--- |
 | `file` | `File` | 是 | 需要上传的二进制文件内容。 |
-| `path` | `string` | 否 | 文件在存储桶中存放的相对目录路径，例如 `icons/`。如果提供，请确保以 `/` 结尾。该路径会自动进行清理，以防止路径遍历攻击。 |
+| `path` | `string` | 是 | 文件在存储桶中存放的相对目录路径，例如 `icons/`。该路径会自动进行清理，以防止路径遍历攻击。 |
+| `bucket` | `string` | 是 | 上传到哪个桶。这个名字是在环境变量里配置的 `BUCKET_{name}_` 中的 `name` 部分。 |
 | `fileName` | `string` | 否 | 自定义文件名（包含扩展名）。如果未提供，系统将自动生成一个基于时间戳和原始文件名的唯一名称。 |
 | `overwrite` | `boolean` | 否 | 是否允许覆盖同路径下的同名文件。接受 `true` 或 `false` 字符串。默认为 `false`，如果文件已存在会返回错误，以防意外覆盖。 |
 
@@ -145,6 +142,8 @@
 curl -X POST \
   -H "Authorization: Bearer 您的密钥令牌" \
   -F "file=@/path/to/your/image.png" \
+  -F "path=images/" \
+  -F "bucket=main_r2" \
   https://您的服务url/upload
 ```
 
@@ -155,6 +154,7 @@ curl -X POST \
   -H "X-User-Email: user@example.com" \
   -F "file=@/path/to/icon.svg" \
   -F "path=icons/" \
+  -F "bucket=main_r2" \
   -F "fileName=logo.svg" \
   -F "overwrite=true" \
   https://您的服务url/upload
@@ -172,7 +172,7 @@ curl -X POST \
 
 | 字段 | 类型 | 描述 |
 | :--- | :--- | :--- |
-| `url` | `string` | 文件的完整可访问 URL。如果配置了 `CUSTOM_DOMAIN`，将使用自定义域名作为基础 URL。否则，将根据存储提供商生成相应的 URL（例如 S3 的公开访问 URL）。 |
+| `url` | `string` | 文件的完整可访问 URL。如果配置了自定义域名，将使用自定义域名作为基础 URL。否则，将根据存储提供商生成相应的 URL。 |
 | `fileName` | `string` | 上传时原始文件的名称。 |
 
 
