@@ -81,6 +81,7 @@ test('POST /upload should upload a file with valid auth', async ({ expect }) => 
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret')
   vi.stubEnv('BUCKET_main_r2_PROVIDER', "CLOUDFLARE_R2")
   vi.stubEnv('BUCKET_main_r2_BINDING_NAME', "R2_MAIN_BUCKET")
+  vi.stubEnv('BUCKET_main_r2_EMAIL_WHITELIST', 'test@example.com')
 
   const file = new File(['dummy content'], 'test.png', { type: 'image/png' })
   const formData = new FormData()
@@ -92,6 +93,7 @@ test('POST /upload should upload a file with valid auth', async ({ expect }) => 
     body: formData,
     headers: {
       Authorization: 'Bearer test-secret',
+      'X-User-Email': 'test@example.com',
     },
   })
 
