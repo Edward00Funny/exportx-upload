@@ -4,7 +4,7 @@ This is a self-hosted, multi-platform image uploading service designed for the [
 
 By deploying this service yourself, you can securely upload your Figma assets directly to your own cloud storage (like Cloudflare R2 or AWS S3) without sharing any sensitive credentials with a third-party service.
 
-English version: [README.md](README.md) | Chinese version: [README-zh.md](README-zh.md)
+[🇺🇸 English](README.md) | [🇨🇳 中文](README-zh.md)
 
 ## Features
 

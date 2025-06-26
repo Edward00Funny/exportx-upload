@@ -10,3 +10,11 @@
             auth_type: https
             username: ${GIT_USERNAME}
             password: ${GIT_ACCESS_TOKEN}
+        - name: docker build
+          script: docker build -t exportxabfree/exportx-upload:dev .
+        - name: docker login
+          imports:
+            - https://cnb.cool/hututux/env/-/blob/main/docker/exportxabfree.yml
+          script: docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+        - name: docker push
+          script: docker push exportxabfree/exportx-upload:dev

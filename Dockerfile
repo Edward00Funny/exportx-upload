@@ -25,7 +25,7 @@ RUN pnpm run build
 
 # --- Stage 2: Production ---
 # Use a lightweight Node.js image
-FROM node:20-slim AS production
+FROM node:22-alpine AS production
 
 # Set working directory
 WORKDIR /app
@@ -42,8 +42,8 @@ RUN npm install -g pnpm && pnpm install --prod
 # Copy the built application from the builder stage
 COPY --from=builder /app/dist ./dist
 
-# Expose the port the app runs on (defaulting to 3000)
-EXPOSE 3000
+# Expose the port the app runs on (defaulting to 8080)
+EXPOSE 8080
 
 # The command to run the application
 # It uses the 'start' script from package.json: "node dist/server.js"
