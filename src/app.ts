@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { env } from 'hono/adapter'
 import { Bindings } from './bindings'
 import { authMiddleware } from './auth'
 import { uploadFile, UploadOptions } from './storage'
@@ -8,7 +9,8 @@ const app = new Hono<{ Bindings: Bindings }>()
 
 // Configure CORS middleware based on ALLOWED_ORIGINS
 app.use('*', (c, next) => {
-  const allowedOrigins = c.env.ALLOWED_ORIGINS || '*';
+  const { ALLOWED_ORIGINS } = env(c)
+  const allowedOrigins = ALLOWED_ORIGINS || '*';
   const origins = allowedOrigins === '*' ? '*' : allowedOrigins.split(',').map(origin => origin.trim());
 
   return cors({

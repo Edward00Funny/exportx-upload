@@ -1,5 +1,6 @@
 import { Context } from 'hono';
 import { HeadObjectCommand, S3, S3ClientConfig } from '@aws-sdk/client-s3';
+import { env } from 'hono/adapter'
 import { Bindings } from './bindings';
 import to from 'await-to-js';
 
@@ -20,8 +21,9 @@ function sanitizePath(path: string): string {
 }
 
 async function checkR2FileExists(c: Context<{ Bindings: Bindings }>, key: string): Promise<boolean> {
-  if (!c.env.R2_BUCKET) return false;
-  const object = await c.env.R2_BUCKET.head(key);
+  const { R2_BUCKET } = env(c)
+  if (!R2_BUCKET) return false;
+  const object = await R2_BUCKET.head(key);
   return object !== null;
 }
 
@@ -34,7 +36,9 @@ async function checkS3FileExists(s3Client: S3, bucket: string, key: string): Pro
 }
 
 async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
-  if (!c.env.R2_BUCKET) {
+  const { R2_BUCKET, CUSTOM_DOMAIN } = env(c)
+
+  if (!R2_BUCKET) {
     throw new Error('R2_BUCKET is not configured in the environment.');
   }
 
@@ -50,7 +54,7 @@ async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, option
   }
 
   const [err] = await to(
-    c.env.R2_BUCKET.put(fileKey, await file.arrayBuffer(), {
+    R2_BUCKET.put(fileKey, await file.arrayBuffer(), {
       httpMetadata: { contentType: file.type },
     })
   );
@@ -59,18 +63,27 @@ async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, option
     throw new Error('Failed to upload to R2: ' + err.message);
   }
 
-  const baseUrl = c.env.CUSTOM_DOMAIN || '';
+  const baseUrl = CUSTOM_DOMAIN || '';
   const url = baseUrl ? `${baseUrl}/${fileKey}` : `/files/${fileKey}`; // Adjusted for custom domain
   return { url, fileName: file.name };
 }
 
 async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
+  const {
+    S3_ACCESS_KEY_ID,
+    S3_SECRET_ACCESS_KEY,
+    S3_BUCKET_NAME,
+    S3_ENDPOINT,
+    S3_REGION,
+    CUSTOM_DOMAIN,
+  } = env(c)
+
   // Use new environment variable names first, fallback to legacy names
-  const accessKeyId = c.env.S3_ACCESS_KEY_ID;
-  const secretAccessKey = c.env.S3_SECRET_ACCESS_KEY;
-  const bucketName = c.env.S3_BUCKET_NAME;
-  const endpoint = c.env.S3_ENDPOINT;
-  const region = c.env.S3_REGION;
+  const accessKeyId = S3_ACCESS_KEY_ID;
+  const secretAccessKey = S3_SECRET_ACCESS_KEY;
+  const bucketName = S3_BUCKET_NAME;
+  const endpoint = S3_ENDPOINT;
+  const region = S3_REGION;
 
   if (!accessKeyId || !secretAccessKey || !bucketName) {
     throw new Error('S3 environment variables (S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME) are not fully configured.');
@@ -122,8 +135,8 @@ async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, option
   // Generate URL based on custom domain or default S3 URL
   let url: string;
   const s3Host = endpoint || `https://s3.${region}.amazonaws.com`;
-  if (c.env.CUSTOM_DOMAIN) {
-    url = `${c.env.CUSTOM_DOMAIN}/${fileKey}`;
+  if (CUSTOM_DOMAIN) {
+    url = `${CUSTOM_DOMAIN}/${fileKey}`;
   } else {
     // For custom endpoints like Cloudflare R2 or other S3-compatible services
     url = `${s3Host}/${bucketName}/${fileKey}`;
@@ -133,7 +146,8 @@ async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, option
 }
 
 export async function uploadFile(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
-  const provider = c.env.STORAGE_PROVIDER?.toUpperCase();
+  const { STORAGE_PROVIDER } = env(c)
+  const provider = STORAGE_PROVIDER?.toUpperCase();
   switch (provider) {
     case 'CLOUDFLARE_R2':
       return uploadToR2(c, file, options);

@@ -1,9 +1,12 @@
 import { createMiddleware } from 'hono/factory'
+import { env } from 'hono/adapter'
 import { Bindings } from './bindings'
 
 export const authMiddleware = createMiddleware<{ Bindings: Bindings }>(async (c, next) => {
+  const { AUTH_SECRET_KEY, AUTH_TYPE, EMAIL_WHITELIST } = env(c)
+
   // If AUTH_SECRET_KEY is not set, deny all requests for security.
-  if (!c.env.AUTH_SECRET_KEY) {
+  if (!AUTH_SECRET_KEY) {
     console.error('AUTH_SECRET_KEY environment variable not set. Service is disabled.');
     return c.json({ error: 'Service unavailable: Authentication is not configured.' }, 503);
   }
@@ -14,15 +17,15 @@ export const authMiddleware = createMiddleware<{ Bindings: Bindings }>(async (c,
   }
 
   const token = authHeader.substring(7); // "Bearer ".length
-  const validTokens = c.env.AUTH_SECRET_KEY.split(',');
+  const validTokens = AUTH_SECRET_KEY.split(',');
 
   if (!validTokens.includes(token)) {
     return c.json({ error: 'Unauthorized: Invalid token.' }, 401);
   }
 
   // If AUTH_TYPE is TOKEN_AND_EMAIL_WHITELIST, check email whitelist
-  if (c.env.AUTH_TYPE === 'TOKEN_AND_EMAIL_WHITELIST') {
-    if (!c.env.EMAIL_WHITELIST) {
+  if (AUTH_TYPE === 'TOKEN_AND_EMAIL_WHITELIST') {
+    if (!EMAIL_WHITELIST) {
       console.error('EMAIL_WHITELIST is required when AUTH_TYPE is TOKEN_AND_EMAIL_WHITELIST');
       return c.json({ error: 'Service unavailable: Email whitelist not configured.' }, 503);
     }
@@ -34,7 +37,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Bindings }>(async (c,
       return c.json({ error: 'Unauthorized: User email required for whitelist validation.' }, 401);
     }
 
-    const allowedEmails = c.env.EMAIL_WHITELIST.split(',').map(email => email.trim());
+    const allowedEmails = EMAIL_WHITELIST.split(',').map(email => email.trim());
     if (!allowedEmails.includes(userEmail)) {
       return c.json({ error: 'Unauthorized: Email not in whitelist.' }, 403);
     }
