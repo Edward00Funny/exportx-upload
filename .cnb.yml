@@ -10,6 +10,19 @@
             pnpm install
             pnpm test
 
+        - name: auto-tag
+          image: cnbcool/git-auto-tag:latest
+          settings:
+            tagFormat: v\${version}
+            dryRun: false
+            blockWhenFail: false
+            branch: $CNB_BRANCH
+            repoUrlHttps: $CNB_REPO_URL_HTTPS
+          exports:
+            tag: NEW_TAG
+        - name: show tag
+          script: echo $NEW_TAG
+
         - name: sync to github
           imports:
             - https://cnb.cool/hututux/env/-/blob/main/github/Edward00Funny.yml
