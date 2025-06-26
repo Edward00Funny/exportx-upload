@@ -98,102 +98,77 @@ Use this method to deploy the service on any platform that supports Docker conta
 
 ## Configuration
 
-The service is configured entirely through environment variables.
+This service is configured entirely through environment variables. Please refer to the comments in `wrangler.jsonc` for detailed configuration.
 
-| Variable                | Required                               | Description                                                                                                   | Example                                         |
-| ----------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `AUTH_TOKEN`            | **Yes**                                | A secret Bearer token for authentication. Can be a single token or a comma-separated list for multiple users. | `my-secret` or `token1,token2`                  |
-| `STORAGE_PROVIDER`      | **Yes**                                | Specifies the storage backend. Currently supports `R2` and `S3`.                                              | `R2`                                            |
-| `PORT`                  | No (for Docker)                        | The port for the Node.js server to listen on. Defaults to `3000`.                                             | `8080`                                          |
-| `R2_BUCKET`             | Yes (for `R2`)                         | Cloudflare R2 bucket binding. Set automatically via `wrangler.jsonc`.                                         | (Handled by Cloudflare)                         |
-| `AWS_ACCESS_KEY_ID`     | Yes (for `S3`)                         | Your AWS Access Key ID.                                                                                       | `AKIAIOSFODNN7EXAMPLE`                          |
-| `AWS_SECRET_ACCESS_KEY` | Yes (for `S3`)                         | Your AWS Secret Access Key.                                                                                   | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`      |
-| `AWS_S3_BUCKET`         | Yes (for `S3`)                         | The name of your S3 bucket.                                                                                   | `my-figma-assets-bucket`                        |
-| `AWS_S3_REGION`         | Yes (for `S3`)                         | The AWS region where your bucket is located.                                                                  | `us-east-1`                                     |
+### Bucket Configuration
+
+| Variable | Example Value | Required | Description |
+| --- | --- | --- | --- |
+| `BUCKET_{name}_*` | | Yes | Defines a bucket. For example, `BUCKET_main_r2_PROVIDER`. See `wrangler.jsonc` for details. |
+| `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | No | Comma-separated list of allowed upload paths. `*` allows all paths. |
+| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | No | Comma-separated email whitelist for this bucket. Required for this bucket if `AUTH_TYPE` is `TOKEN_AND_EMAIL_WHITELIST`. |
+
+### Global Authentication Configuration
+
+| Environment Variable | Example Value | Required | Description |
+| --- | --- | --- | --- |
+| `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | Yes | Shared secret key for validating request legitimacy. Can be one or more keys, comma-separated. |
+| `AUTH_TYPE` | `TOKEN_AND_EMAIL_WHITELIST` | No | Authentication type. `TOKEN` (default) or `TOKEN_AND_EMAIL_WHITELIST`. |
+| `ALLOWED_ORIGINS` | `https://www.figma.com` | No | Allowed cross-origin request sources. Defaults to `*` (allow all). |
+| `PORT` | `8080` | No | Node.js server listening port (Docker only). |
 
 ---
 
-## API Usage
+### API Endpoints
 
-### Upload File
+All endpoints require an `Authorization: Bearer {AUTH_SECRET_KEY}` header.
 
-- **Endpoint**: `POST /upload`
-- **Content-Type**: `multipart/form-data`
+#### `GET /`
 
-#### Headers
+Health check endpoint.
 
-| Header          | Type     | Required | Description                                                                                                      |
-| :-------------- | :------- | :------- | :--------------------------------------------------------------------------------------------------------------- |
-| `Authorization` | `string` | Yes      | Bearer Token authentication. Format: `Bearer <YOUR_AUTH_TOKEN>`.                                                   |
-| `X-User-Email`  | `string` | No       | The email of the Figma user making the request. Required when `AUTH_TYPE` is `TOKEN_AND_EMAIL_WHITELIST` for whitelist validation. |
+#### `GET /buckets`
 
-#### Request Body (`multipart/form-data`)
+Retrieves public information for all configured buckets.
 
-| Field       | Type      | Required | Description                                                                                                                             |
-| :---------- | :-------- | :------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
-| `file`      | `File`    | Yes      | The binary content of the file to upload.                                                                                               |
-| `path`      | `string`  | No       | The relative directory path in the bucket to store the file, e.g., `icons/`. The path is sanitized to prevent path traversal attacks.      |
-| `fileName`  | `string`  | No       | A custom file name (including extension). If not provided, a unique name based on a timestamp and the original filename will be generated. |
-| `overwrite` | `boolean` | No       | Whether to allow overwriting an existing file at the same path. Accepts a string of `true` or `false`. Defaults to `false` to prevent accidental overwrites by returning an error if the file exists. |
+#### `POST /upload?bucket={bucket_name}`
 
-#### Example `curl` Usage
+Uploads a file to the specified bucket.
 
-**1. Basic Upload**
-```bash
-curl -X POST \
-  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
-  -F "file=@/path/to/your/image.png" \
-  https://your-service-url/upload
-```
+- **`bucket_name`** (Query parameter, required): The logical name of the target bucket (e.g., `main_r2`).
 
-**2. Upload to a Specific Directory with Overwrite Enabled**
-```bash
-curl -X POST \
-  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
-  -H "X-User-Email: user@example.com" \
-  -F "file=@/path/to/icon.svg" \
-  -F "path=icons/" \
-  -F "fileName=logo.svg" \
-  -F "overwrite=true" \
-  https://your-service-url/upload
-```
+##### Request Body (`multipart/form-data`)
 
-#### Success Response (`200 OK`)
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file` | `File` | Yes | The file to upload. |
+| `path` | `string` | Yes | The target path for the upload. E.g., `images` or `user/avatars`. |
+| `fileName` | `string` | No | Optional filename. If not provided, the original filename is used. |
+| `overwrite` | `string` | No | If `true`, overwrites the file if it exists at the same path. |
 
-The response is a JSON object containing information about the uploaded file.
+##### Headers
+
+| Header | Type | Required | Description |
+| --- | --- | --- | --- |
+| `Authorization` | `string` | Yes | Bearer Token. Format: `Bearer {AUTH_SECRET_KEY}`. |
+| `X-User-Email` | `string` | No | The email of the user making the request. Required when `AUTH_TYPE` is `TOKEN_AND_EMAIL_WHITELIST` for email whitelist validation. |
+
+##### Success Response (`200 OK`)
 ```json
 {
-  "url": "https://images.mycompany.com/icons/logo.svg",
-  "fileName": "icon.svg"
+  "url": "https://your-custom-domain.com/path/to/your/file.png",
+  "fileName": "file.png"
 }
 ```
 
-| Field      | Type     | Description                                                                                                                                                             |
-| :--------- | :------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`      | `string` | The full, accessible URL of the file. If `CUSTOM_DOMAIN` is configured, it will be used as the base URL. Otherwise, a corresponding URL will be generated based on the storage provider (e.g., a public S3 URL). |
-| `fileName` | `string` | The original name of the uploaded file.                                                                                                                               |
+##### Error Responses
 
-
-The returned `url` is the path to access the file. In the Figma plugin, you should construct the full URL by prepending your service's domain. For S3, a full public URL is returned.
+- `400 Bad Request`: Missing required parameters.
+- `401 Unauthorized`: Authentication failed.
+- `403 Forbidden`: Email not in whitelist.
+- `500 Internal Server Error`: Server-side or configuration error.
 
 ```txt
 npm install
 npm run dev
-```
-
-```txt
-npm run deploy
-```
-
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
-
-```txt
-npm run cf-typegen
-```
-
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
 ```

@@ -1,26 +1,93 @@
-import { vi, test, afterEach } from 'vitest'
+import { vi, test, afterEach, beforeEach, type Mock } from 'vitest'
 import { app } from '../src/app'
+import { getAllBucketsConfig } from '../src/storage'
 
 // Mock the storage module
-vi.mock('../src/storage', () => ({
-  uploadFile: vi.fn().mockResolvedValue({
-    success: true,
-    url: 'https://example.com/file.png',
-    fileName: 'file.png',
-  }),
-  getAllBucketsConfig: vi.fn().mockReturnValue({
-    'main_r2': { provider: 'CLOUDFLARE_R2' }
-  }),
-}));
+vi.mock('../src/storage', async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual, // Keep actual implementations for functions we don't mock
+    uploadFile: vi.fn().mockResolvedValue({
+      success: true,
+      url: 'https://example.com/file.png',
+      fileName: 'file.png',
+    }),
+    // We will mock getAllBucketsConfig in specific tests
+    getAllBucketsConfig: vi.fn(),
+  }
+});
 
-afterEach(() => {
-  vi.unstubAllEnvs()
-})
+beforeEach(() => {
+  // Reset mocks before each test
+  vi.clearAllMocks();
+  vi.unstubAllEnvs();
+});
 
 test('GET / should return OK', async ({ expect }) => {
   const res = await app.request('/')
   expect(res.status).toBe(200)
   expect(await res.text()).toBe('OK')
+});
+
+test('GET /buckets returns all buckets when auth type is TOKEN', async ({ expect }) => {
+  vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
+  vi.stubEnv('AUTH_TYPE', 'TOKEN');
+
+  (getAllBucketsConfig as Mock).mockReturnValue({
+    'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user@example.com'] },
+    'bucket2': { provider: 'AWS_S3' }
+  });
+
+  const req = new Request('http://localhost/buckets', {
+    headers: { 'Authorization': 'Bearer test-secret' }
+  });
+
+  const res = await app.fetch(req);
+  expect(res.status).toBe(200);
+  const data = await res.json() as { buckets: any[] };
+  expect(data.buckets.length).toBe(2);
+});
+
+test('GET /buckets returns only whitelisted buckets when auth type is TOKEN_AND_EMAIL_WHITELIST', async ({ expect }) => {
+  vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
+  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST');
+
+  (getAllBucketsConfig as Mock).mockReturnValue({
+    'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user1@example.com'] },
+    'bucket2': { provider: 'AWS_S3', emailWhitelist: ['user2@example.com'] },
+    'private_bucket': { provider: 'AWS_S3' } // No whitelist, should not be visible to anyone
+  });
+
+  const req = new Request('http://localhost/buckets', {
+    headers: {
+      'Authorization': 'Bearer test-secret',
+      'X-User-Email': 'user1@example.com'
+    }
+  });
+
+  const res = await app.fetch(req);
+  expect(res.status).toBe(200);
+  const data = await res.json() as { buckets: { name: string }[] };
+  expect(data.buckets.length).toBe(1);
+  expect(data.buckets[0].name).toBe('bucket1');
+});
+
+test('GET /buckets returns empty list if email is not provided when required', async ({ expect }) => {
+  vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
+  vi.stubEnv('AUTH_TYPE', 'TOKEN_AND_EMAIL_WHITELIST');
+
+  (getAllBucketsConfig as Mock).mockReturnValue({
+    'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user@example.com'] },
+  });
+
+  const req = new Request('http://localhost/buckets', {
+    headers: { 'Authorization': 'Bearer test-secret' }
+  });
+
+  const res = await app.fetch(req);
+  expect(res.status).toBe(200);
+  const data = await res.json() as { buckets: any[] };
+  expect(data.buckets.length).toBe(0);
 });
 
 test('POST /upload should return 401 without auth', async ({ expect }) => {
@@ -33,7 +100,6 @@ test('POST /upload should return 401 without auth', async ({ expect }) => {
 
 test('POST /upload should upload a file with valid auth', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret')
-  vi.stubEnv('DEFAULT_BUCKET_CONFIG_NAME', 'main_r2')
   vi.stubEnv('BUCKET_main_r2_PROVIDER', "CLOUDFLARE_R2")
   vi.stubEnv('BUCKET_main_r2_BINDING_NAME', "R2_MAIN_BUCKET")
 
@@ -41,9 +107,8 @@ test('POST /upload should upload a file with valid auth', async ({ expect }) => 
   const formData = new FormData()
   formData.append('file', file)
   formData.append('path', 'images')
-  formData.append('bucket', 'main_r2')
 
-  const res = await app.request('/upload', {
+  const res = await app.request('/upload?bucket=main_r2', {
     method: 'POST',
     body: formData,
     headers: {

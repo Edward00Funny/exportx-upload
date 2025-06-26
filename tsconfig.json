@@ -6,8 +6,10 @@
     "lib": [
       "ES2022"
     ],
+    "types": [
+      "vitest/globals"
+    ],
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -15,6 +17,7 @@
     "jsxImportSource": "hono/jsx"
   },
   "include": [
-    "src"
+    "src",
+    "test"
   ]
 }

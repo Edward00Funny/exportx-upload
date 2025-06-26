@@ -81,7 +81,6 @@
       -e PORT=8080 \
       -e AUTH_TYPE="TOKEN" \
       -e AUTH_SECRET_KEY="您的密钥令牌,队友的另一个令牌" \
-      -e DEFAULT_BUCKET_CONFIG_NAME="my_s3_bucket" \
       -e BUCKET_my_s3_bucket_PROVIDER="AWS_S3" \
       -e BUCKET_my_s3_bucket_ACCESS_KEY_ID="您的aws密钥id" \
       -e BUCKET_my_s3_bucket_SECRET_ACCESS_KEY="您的aws密钥" \
@@ -99,113 +98,75 @@
 
 该服务完全通过环境变量进行配置。请参考 `wrangler.jsonc` 中的注释来进行详细配置。
 
-| 变量                      | 示例值                                              | 必需 | 描述                                                                                           |
-| ------------------------- | -------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------- |
-| `DEFAULT_BUCKET_CONFIG_NAME` | `main_r2` | 是 | 默认使用的存储桶配置名称。 |
+### 存储桶配置
+
+| 变量 | 示例值 | 必需 | 描述 |
+| --- | --- | --- | --- |
 | `BUCKET_{name}_*` | | 是 | 用于定义一个存储桶。例如 `BUCKET_main_r2_PROVIDER`。详细配置请看 `wrangler.jsonc`。 |
-| `AUTH_TYPE`               | `TOKEN_AND_EMAIL_WHITELIST`                      | 是   | 认证类型。明确指定使用"密钥+白名单"模式。其他可选值可以是TOKEN（仅密钥）。                      |
-| `AUTH_SECRET_KEY`         | `a_very_long_and_secure_string`                  | 是   | 共享认证密钥。用于验证请求来源的合法性。                                                       |
-| `EMAIL_WHITELIST`         | `user1@co.com,user2@co.com`                      | 否   | 邮箱白名单。当AUTH_TYPE为TOKEN_AND_EMAIL_WHITELIST时必填。逗号分隔的邮箱列表。                 |
-| `ALLOWED_ORIGINS`         | `https://www.figma.com`                           | 否   | 允许的跨域访问来源。                                                                           |
-| `PORT`                    | `8080`                                            | 否   | Node.js 服务器监听的端口。默认为 `3000`。（仅Docker）                                         |
+| `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | 否 | 允许上传的路径列表，逗号分隔。`*` 表示允许所有路径。 |
+| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | 否 | 针对此存储桶的邮箱白名单，逗号分隔。当 `AUTH_TYPE` 为 `TOKEN_AND_EMAIL_WHITELIST` 时，此存储桶的白名单为必填项。 |
+
+### 全局认证配置
+
+| 环境变量 | 示例值 | 是否必需 | 描述 |
+| --- | --- | --- | --- |
+| `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | 是 | 用于验证请求合法性的共享密钥。可以是一个或多个密钥，用逗号分隔。 |
+| `AUTH_TYPE` | `TOKEN_AND_EMAIL_WHITELIST` | 否 | 认证类型。`TOKEN` (默认) 或 `TOKEN_AND_EMAIL_WHITELIST`。 |
+| `ALLOWED_ORIGINS` | `https://www.figma.com` | 否 | 允许的跨域请求来源。默认值为 `*` (允许所有)。 |
+| `PORT` | `8080` | 否 | Node.js 服务器监听端口（仅限 Docker）。 |
 
 ---
 
-## API 使用
+### API 端点
 
-### 上传文件
+所有端点都需要 `Authorization: Bearer {AUTH_SECRET_KEY}` 请求头。
 
-- **端点**: `POST /upload`
-- **内容类型**: `multipart/form-data`
+#### `GET /`
 
-#### 请求头
+健康检查端点。
 
-| Header | 类型 | 必需 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `Authorization` | `string` | 是 | Bearer Token 认证。格式为 `Bearer <您的密钥令牌>`。 |
-| `X-User-Email` | `string` | 否 | 发起请求的 Figma 用户的邮箱。当 `AUTH_TYPE` 设置为 `TOKEN_AND_EMAIL_WHITELIST` 时此项为必需，用于邮箱白名单验证。 |
+#### `GET /buckets`
 
-#### 请求体 (`multipart/form-data`)
+获取所有已配置存储桶的公开信息。
 
-| 字段 | 类型 | 必需 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `file` | `File` | 是 | 需要上传的二进制文件内容。 |
-| `path` | `string` | 是 | 文件在存储桶中存放的相对目录路径，例如 `icons/`。该路径会自动进行清理，以防止路径遍历攻击。 |
-| `bucket` | `string` | 是 | 上传到哪个桶。这个名字是在环境变量里配置的 `BUCKET_{name}_` 中的 `name` 部分。 |
-| `fileName` | `string` | 否 | 自定义文件名（包含扩展名）。如果未提供，系统将自动生成一个基于时间戳和原始文件名的唯一名称。 |
-| `overwrite` | `boolean` | 否 | 是否允许覆盖同路径下的同名文件。接受 `true` 或 `false` 字符串。默认为 `false`，如果文件已存在会返回错误，以防意外覆盖。 |
+#### `POST /upload?bucket={bucket_name}`
 
-#### 使用 `curl` 的示例
+上传文件到指定的存储桶。
 
-**1. 基础上传**
-```bash
-curl -X POST \
-  -H "Authorization: Bearer 您的密钥令牌" \
-  -F "file=@/path/to/your/image.png" \
-  -F "path=images/" \
-  -F "bucket=main_r2" \
-  https://您的服务url/upload
-```
+- **`bucket_name`** (查询参数, 必需): 目标存储桶的逻辑名称 (例如, `main_r2`)。
 
-**2. 上传到指定目录并允许覆盖**
-```bash
-curl -X POST \
-  -H "Authorization: Bearer 您的密钥令牌" \
-  -H "X-User-Email: user@example.com" \
-  -F "file=@/path/to/icon.svg" \
-  -F "path=icons/" \
-  -F "bucket=main_r2" \
-  -F "fileName=logo.svg" \
-  -F "overwrite=true" \
-  https://您的服务url/upload
-```
+##### 请求体 (`multipart/form-data`)
 
-#### 成功响应 (`200 OK`)
+| 字段 | 类型 | 是否必需 | 描述 |
+| --- | --- | --- | --- |
+| `file` | `File` | 是 | 要上传的文件。 |
+| `path` | `string` | 是 | 上传的目标路径。例如, `images` 或 `user/avatars`。 |
+| `fileName` | `string` | 否 | 可选的文件名。如果未提供，将使用原始文件名。 |
+| `overwrite` | `string` | 否 | 如果为 `true`，将覆盖同路径下的同名文件。 |
 
-响应为一个 JSON 对象，包含了上传后文件的信息。
+##### 请求头
+
+| Header | Type | Required | Description |
+| --- | --- | --- | --- |
+| `Authorization` | `string` | 是 | Bearer Token。格式为 `Bearer {AUTH_SECRET_KEY}`。 |
+| `X-User-Email` | `string` | 否 | 发起请求的用户的邮箱。当 `AUTH_TYPE` 设置为 `TOKEN_AND_EMAIL_WHITELIST` 时，此项为必需，用于邮箱白名单验证。 |
+
+##### 成功响应 (`200 OK`)
 ```json
 {
-  "url": "https://images.mycompany.com/icons/logo.svg",
-  "fileName": "icon.svg"
+  "url": "https://your-custom-domain.com/path/to/your/file.png",
+  "fileName": "file.png"
 }
 ```
 
-| 字段 | 类型 | 描述 |
-| :--- | :--- | :--- |
-| `url` | `string` | 文件的完整可访问 URL。如果配置了自定义域名，将使用自定义域名作为基础 URL。否则，将根据存储提供商生成相应的 URL。 |
-| `fileName` | `string` | 上传时原始文件的名称。 |
+##### 错误响应
 
-
-返回的 `url` 是访问文件的路径。在 Figma 插件中，您应该通过在服务域名前添加前缀来构建完整的 URL。对于 S3，返回完整的公共 URL。
+- `400 Bad Request`: 请求缺少必需的参数。
+- `401 Unauthorized`: 认证失败。
+- `403 Forbidden`: 邮箱不在白名单中。
+- `500 Internal Server Error`: 服务器内部错误或配置错误。
 
 ```txt
 npm install
 npm run dev
-```
-
-```txt
-npm run deploy
-```
-
-[要根据您的 Worker 配置生成/同步类型，请运行](https://developers.cloudflare.com/workers/wrangler/commands/#types)：
-
-```txt
-npm run cf-typegen
-```
-
-在实例化 `Hono` 时将 `CloudflareBindings` 作为泛型传递：
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-``` 
-
-## 填写帮助
-
-### 腾讯云COS
-
-
-
-```
-
 ```

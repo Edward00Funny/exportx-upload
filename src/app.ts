@@ -28,10 +28,28 @@ app.get('/', (c) => {
 // Get bucket configurations route
 app.get('/buckets', authMiddleware, async (c) => {
   try {
-    const bucketsConfig = getAllBucketsConfig(c);
+    const { AUTH_TYPE } = env(c);
+    const allBucketsConfig = getAllBucketsConfig(c);
+    let filteredBuckets = allBucketsConfig;
+
+    if (AUTH_TYPE === 'TOKEN_AND_EMAIL_WHITELIST') {
+      const userEmail = c.req.header('X-User-Email');
+      if (!userEmail) {
+        // If email is required but not provided, return no buckets
+        filteredBuckets = {};
+      } else {
+        filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
+          // A bucket is only accessible if it has a whitelist and the user is in it.
+          if (config.emailWhitelist && config.emailWhitelist.includes(userEmail)) {
+            acc[bucketName] = config;
+          }
+          return acc;
+        }, {} as Record<string, typeof allBucketsConfig[string]>);
+      }
+    }
 
     // Build public configuration information, hiding sensitive data
-    const publicConfig = Object.entries(bucketsConfig).map(([bucketName, config]) => ({
+    const publicConfig = Object.entries(filteredBuckets).map(([bucketName, config]) => ({
       name: bucketName,
       provider: config.provider,
       bucketName: config.bucketName,
@@ -47,7 +65,6 @@ app.get('/buckets', authMiddleware, async (c) => {
     return c.json({
       success: true,
       buckets: publicConfig,
-      defaultBucket: c.env.DEFAULT_BUCKET_CONFIG_NAME
     });
   } catch (error: any) {
     console.error('Failed to get bucket configuration:', error.message);
@@ -62,18 +79,21 @@ app.get('/buckets', authMiddleware, async (c) => {
 // Upload route
 app.post('/upload', authMiddleware, async (c) => {
   try {
+    const bucketConfig = c.get('bucketConfig');
+    if (!bucketConfig) {
+      // This should technically not be reached if authMiddleware is correctly configured
+      // for the upload route to require a bucket.
+      return c.json({ success: false, error: 'Bucket configuration not found in context.' }, 500);
+    }
+
     const formData = await c.req.formData()
     const file = formData.get('file') as unknown as File
     const path = formData.get('path')?.toString();
     const fileName = formData.get('fileName')?.toString();
     const overwrite = formData.get('overwrite')?.toString() === 'true';
-    const bucket = formData.get('bucket')?.toString(); // Get bucket logical name from form data
 
     if (!file || typeof file.arrayBuffer !== 'function') {
       return c.json({ error: 'No file provided or form data is incorrect.' }, 400)
-    }
-    if (!bucket) {
-      return c.json({ success: false, error: 'bucket is required.' }, 400);
     }
     if (!path) {
       return c.json({ success: false, error: 'path is required.' }, 400);
@@ -83,10 +103,9 @@ app.post('/upload', authMiddleware, async (c) => {
       path,
       fileName,
       overwrite,
-      bucket, // Add bucket parameter to options
     };
 
-    const result = await uploadFile(c, file, options)
+    const result = await uploadFile(c, file, options, bucketConfig)
     return c.json(result)
   } catch (error: any) {
     console.error('Upload failed:', error.message)

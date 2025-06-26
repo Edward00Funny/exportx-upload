@@ -3,13 +3,6 @@ export type Bindings = {
   [key: string]: any;
 
   /**
-   * Default bucket configuration name to use
-   * @example "personal_aws"
-   * @example "main_r2"
-   */
-  DEFAULT_BUCKET_CONFIG_NAME?: string;
-
-  /**
    * Dynamic bucket configuration - using prefix pattern
    * Format: BUCKET_{logical_name}_{attribute_name}
    * 
@@ -50,13 +43,6 @@ export type Bindings = {
    */
   AUTH_SECRET_KEY: string;
 
-  /**
-   * Email whitelist (comma-separated)
-   * Required when AUTH_TYPE is TOKEN_AND_EMAIL_WHITELIST
-   * @example "user1@co.com,user2@co.com"
-   */
-  EMAIL_WHITELIST?: string;
-
   // --- Additional configuration ---
   /**
    * Custom access domain (global default)
@@ -92,4 +78,5 @@ export type BucketConfig = {
   bindingName?: string; // Only for Cloudflare R2
   alias?: string; // Bucket alias for user-friendly display
   allowedPaths?: string[]; // List of allowed paths, e.g. ["images", "documents"] or ["*"] for all paths
-}; 
+  emailWhitelist?: string[]; // Email whitelist for this bucket
+};

@@ -38,7 +38,6 @@ export type UploadOptions = {
   path: string;
   fileName?: string;
   overwrite?: boolean;
-  bucket: string; // Bucket logical name, e.g. "personal_aws" or "main_r2"
 };
 
 function sanitizePath(path: string): string {
@@ -77,7 +76,7 @@ function validatePath(requestedPath: string, allowedPaths: string[]): boolean {
 /**
  * Get bucket configuration from environment variables
  */
-function getBucketConfig(c: Context<{ Bindings: Bindings }>, bucketName: string): BucketConfig {
+export function getBucketConfig<E extends { Bindings: Bindings }>(c: Context<E>, bucketName: string): BucketConfig {
   const envVars = env(c);
 
   // Build environment variable prefix
@@ -102,6 +101,9 @@ function getBucketConfig(c: Context<{ Bindings: Bindings }>, bucketName: string)
     allowedPaths: envVars[`${prefix}ALLOWED_PATHS`] ?
       envVars[`${prefix}ALLOWED_PATHS`].split(',').map((path: string) => path.trim()) :
       ['*'], // Default to allow all paths
+    emailWhitelist: envVars[`${prefix}EMAIL_WHITELIST`] ?
+      envVars[`${prefix}EMAIL_WHITELIST`].split(',').map((email: string) => email.trim()) :
+      undefined, // Default to undefined if not set
   };
 
   // Validate configuration completeness
@@ -134,7 +136,7 @@ async function checkS3FileExists(s3Client: S3, bucket: string, key: string): Pro
   return err === null;
 }
 
-async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
+async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
   if (!config.bindingName) {
     throw new Error('R2 configuration error: missing bindingName');
   }
@@ -177,7 +179,7 @@ async function uploadToR2(c: Context<{ Bindings: Bindings }>, file: File, config
   return { url, fileName: file.name };
 }
 
-async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
+async function uploadToS3<E extends { Bindings: Bindings }>(c: Context<E>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName || !config.endpoint || !config.region) {
     throw new Error('S3 configuration incomplete');
   }
@@ -236,7 +238,7 @@ async function uploadToS3(c: Context<{ Bindings: Bindings }>, file: File, config
 /**
  * Get all bucket configurations (excluding sensitive data)
  */
-export function getAllBucketsConfig(c: Context<{ Bindings: Bindings }>): Record<string, BucketConfig> {
+export function getAllBucketsConfig<E extends { Bindings: Bindings }>(c: Context<E>): Record<string, BucketConfig> {
   const envVars = env(c);
   const buckets: Record<string, BucketConfig> = {};
 
@@ -266,22 +268,18 @@ export function getAllBucketsConfig(c: Context<{ Bindings: Bindings }>): Record<
 /**
  * Upload file to the specified storage
  */
-export async function uploadFile(c: Context<{ Bindings: Bindings }>, file: File, options: UploadOptions): Promise<UploadResult> {
-  // Bucket is now a required parameter, get its config
-  // getBucketConfig will throw an error if the configuration is not found
-  const config = getBucketConfig(c, options.bucket);
-
-  // Path is also a required parameter, validate it against allowed paths
+export async function uploadFile<E extends { Bindings: Bindings }>(c: Context<E>, file: File, options: UploadOptions, config: BucketConfig): Promise<UploadResult> {
+  // Validate path against allowed paths in the bucket config
   if (!validatePath(options.path, config.allowedPaths || ['*'])) {
-    throw new Error(`Path '${options.path}' is not allowed for bucket '${options.bucket}'`);
+    throw new Error(`Path '${options.path}' is not allowed for this bucket.`);
   }
 
-  // Upload to the specified storage provider
+  // Choose upload strategy based on provider
   if (config.provider === 'CLOUDFLARE_R2') {
-    return uploadToR2(c, file, config, options);
+    return await uploadToR2(c, file, config, options);
   } else if (config.provider === 'AWS_S3') {
-    return uploadToS3(c, file, config, options);
+    return await uploadToS3(c, file, config, options);
+  } else {
+    throw new Error(`Unsupported provider: ${config.provider}`);
   }
-
-  throw new Error(`Unsupported storage provider: ${config.provider}`);
 } 

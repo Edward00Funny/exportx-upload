@@ -4,14 +4,14 @@
   "main": "adaptors/worker.ts",
   "compatibility_date": "2025-06-25",
   "vars": {
-    // --- 多桶配置系统 ---
-    // 设置默认使用的桶配置
-    "DEFAULT_BUCKET_CONFIG_NAME": "main_r2",
-    // --- 桶配置 #1: 主要的 R2 桶 ---
+    // --- multi-bucket config system ---
+    
+    // --- bucket config #1: main r2 bucket ---
     "BUCKET_main_r2_PROVIDER": "CLOUDFLARE_R2",
     "BUCKET_main_r2_BINDING_NAME": "R2_MAIN_BUCKET",
     "BUCKET_main_r2_CUSTOM_DOMAIN": "http://localhost:8787",
-    // --- 桶配置 #2: AWS S3 桶示例 ---
+    "BUCKET_main_r2_EMAIL_WHITELIST": "your-email@example.com",
+    // --- bucket config #2: AWS S3 bucket example ---
     "BUCKET_aws_backup_PROVIDER": "AWS_S3",
     "BUCKET_aws_backup_ACCESS_KEY_ID": "your_aws_ak_string",
     "BUCKET_aws_backup_SECRET_ACCESS_KEY": "your_aws_sk_string",
@@ -19,7 +19,8 @@
     "BUCKET_aws_backup_ENDPOINT": "https://s3.us-east-1.amazonaws.com",
     "BUCKET_aws_backup_REGION": "us-east-1",
     "BUCKET_aws_backup_CUSTOM_DOMAIN": "",
-    // --- 桶配置 #3: Wasabi 或其他 S3 兼容服务 ---
+    "BUCKET_aws_backup_EMAIL_WHITELIST": "your-email@example.com",
+    // --- bucket config #3: Wasabi or other S3 compatible service ---
     "BUCKET_wasabi_storage_PROVIDER": "AWS_S3",
     "BUCKET_wasabi_storage_ACCESS_KEY_ID": "your_wasabi_ak_string",
     "BUCKET_wasabi_storage_SECRET_ACCESS_KEY": "your_wasabi_sk_string",
@@ -28,18 +29,14 @@
     "BUCKET_wasabi_storage_REGION": "us-east-1",
     "BUCKET_wasabi_storage_CUSTOM_DOMAIN": "https://cdn.example.com",
     "BUCKET_wasabi_storage_ALLOWED_PATHS": "images,photos,avatars",
-    // --- 认证和其他配置 ---
+    "BUCKET_wasabi_storage_EMAIL_WHITELIST": "your-email@example.com",
+    // --- authentication and other config ---
     "AUTH_TYPE": "TOKEN_AND_EMAIL_WHITELIST",
     "AUTH_SECRET_KEY": "your_dev_secret_key_here",
-    "EMAIL_WHITELIST": "your-email@example.com",
     "ALLOWED_ORIGINS": "https://www.figma.com",
     "PORT": "8080"
   },
   "r2_buckets": [
-    {
-      "binding": "R2_MAIN_BUCKET",
-      "bucket_name": "my-main-production-bucket"
-    },
     {
       "binding": "R2_BUCKET",
       "bucket_name": "my-bucket"
