@@ -1,6 +1,8 @@
 '**':
   push:
-    - stages:
+    - service: exportx-upload
+      - docker
+      stages:
         - name: sync to github
           imports:
             - https://cnb.cool/hututux/env/-/blob/main/github/Edward00Funny.yml
