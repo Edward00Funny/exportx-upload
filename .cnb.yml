@@ -1,7 +1,7 @@
 '**':
   push:
     - service: exportx-upload
-      - docker
+        - docker
       stages:
         - name: sync to github
           imports:
