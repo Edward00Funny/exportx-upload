@@ -113,7 +113,6 @@ This service is configured entirely through environment variables. Please refer 
 | Environment Variable | Example Value | Required | Description |
 | --- | --- | --- | --- |
 | `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | Yes | Shared secret key for validating request legitimacy. Can be one or more keys, comma-separated. |
-| `ALLOWED_ORIGINS` | `https://www.figma.com` | No | Allowed cross-origin request sources. Defaults to `*` (allow all). |
 | `PORT` | `8080` | No | Node.js server listening port (Docker only). |
 
 ---

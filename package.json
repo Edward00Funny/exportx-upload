@@ -14,8 +14,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.835.0",
     "@hono/node-server": "^1.14.4",
+    "@hono/zod-validator": "^0.7.0",
     "await-to-js": "^3.0.0",
-    "hono": "^4.8.3"
+    "hono": "^4.8.3",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",

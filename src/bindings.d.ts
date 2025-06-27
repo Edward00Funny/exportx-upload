@@ -45,12 +45,6 @@ export type Bindings = {
   CUSTOM_DOMAIN?: string;
 
   /**
-   * Allowed cross-origin request sources
-   * @example "https://www.figma.com"
-   */
-  ALLOWED_ORIGINS?: string;
-
-  /**
    * Node.js server listening port (Docker only)
    * @example "8080"
    */

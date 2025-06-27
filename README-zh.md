@@ -106,7 +106,6 @@
 | 环境变量 | 示例值 | 是否必需 | 描述 |
 | --- | --- | --- | --- |
 | `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | 是 | 用于验证请求合法性的共享密钥。可以是一个或多个密钥，用逗号分隔。 |
-| `ALLOWED_ORIGINS` | `https://www.figma.com` | 否 | 允许的跨域请求来源。默认值为 `*` (允许所有)。 |
 | `PORT` | `8080` | 否 | Node.js 服务器监听端口（仅限 Docker）。 |
 
 ---
@@ -132,11 +131,11 @@
 ##### 请求体 (`multipart/form-data`)
 
 | 字段 | 类型 | 是否必需 | 描述 |
-| --- | --- | --- | --- |
+| :--- | :--- | :--- | :--- |
 | `file` | `File` | 是 | 要上传的文件。 |
 | `path` | `string` | 是 | 上传的目标路径。例如, `images` 或 `user/avatars`。 |
-| `fileName` | `string` | 否 | 可选的文件名。如果未提供，将使用原始文件名。 |
-| `overwrite` | `string` | 否 | 如果为 `true`，将覆盖同路径下的同名文件。 |
+| `fileName` | `string` | 否 | 可选的文件名。如果未提供，将使用文件的原始名称。 |
+| `overwrite` | `string` | 否 | 是否覆盖同路径下的同名文件。值为字符串 `'true'` 时生效。 |
 
 ##### 请求头
 
