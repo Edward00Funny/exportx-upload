@@ -4,7 +4,7 @@
 
 通过自行部署此服务，您可以安全地将 Figma 资源直接上传到您自己的云存储（如 Cloudflare R2 或 AWS S3），无需与第三方服务共享任何敏感凭据。
 
-英文版：[README.md](README.md) | 中文版：[README-zh.md](README-zh.md)
+[🇺🇸 English](README.md) | [🇨🇳 中文](README-zh.md)
 
 ## 特性
 
@@ -110,41 +110,71 @@
 
 ---
 
-### API 端点
+# API 端点
 
 所有端点都需要 `Authorization: Bearer {AUTH_SECRET_KEY}` 请求头。
 
-#### `GET /`
+## `GET /`
 
 健康检查端点。
 
-#### `GET /buckets`
+## `GET /buckets`
 
 获取所有已配置存储桶的公开信息。
 
-#### `POST /upload?bucket={bucket_name}`
-
-上传文件到指定的存储桶。
-
-- **`bucket_name`** (查询参数, 必需): 目标存储桶的逻辑名称 (例如, `main_r2`)。
-
-##### 请求体 (`multipart/form-data`)
-
-| 字段 | 类型 | 是否必需 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `file` | `File` | 是 | 要上传的文件。 |
-| `path` | `string` | 是 | 上传的目标路径。例如, `images` 或 `user/avatars`。 |
-| `fileName` | `string` | 否 | 可选的文件名。如果未提供，将使用文件的原始名称。 |
-| `overwrite` | `string` | 否 | 是否覆盖同路径下的同名文件。值为字符串 `'true'` 时生效。 |
-
-##### 请求头
+**请求头**
 
 | Header | Type | Required | Description |
 | --- | --- | --- | --- |
 | `Authorization` | `string` | 是 | Bearer Token。格式为 `Bearer {AUTH_SECRET_KEY}`。 |
 | `X-User-Email` | `string` | 是 | 发起请求的用户的邮箱。用于邮箱白名单验证。 |
 
-##### 成功响应 (`200 OK`)
+**成功响应**
+
+```json
+{
+  "success": true,
+  "buckets": [
+    {
+      "name": "wasabi_storage",
+      "provider": "AWS_S3",
+      "bucketName": "freeze-page-1251054923",
+      "region": "ap-singapore",
+      "endpoint": "https://cos.ap-singapore.myqcloud.com",
+      "customDomain": "",
+      "alias": "私人存储",
+      "allowedPaths": [
+        "images",
+        "photos",
+        "avatars"
+      ]
+    }
+  ]
+}
+```
+## `POST /upload`
+
+上传文件到指定的存储桶。
+
+**请求体 (`multipart/form-data`)**
+
+| 字段 | 类型 | 是否必需 | 描述 |
+| :--- | :--- | :--- | :--- |
+| `file` | `File` | 是 | 要上传的文件。 |
+| `path` | `string` | 是 | 上传的目标路径。例如, `images` 或 `user/avatars`。 |
+| `bucket` | `string` | 是 | 目标存储桶的逻辑名称 (例如, `main_r2`)。 |
+| `fileName` | `string` | 否 | 可选的文件名。如果未提供，将使用文件的原始名称。 |
+| `overwrite` | `string` | 否 | 是否覆盖同路径下的同名文件。值为字符串 `'true'` 时生效。 |
+
+
+**请求头**
+
+| Header | Type | Required | Description |
+| --- | --- | --- | --- |
+| `Authorization` | `string` | 是 | Bearer Token。格式为 `Bearer {AUTH_SECRET_KEY}`。 |
+| `X-User-Email` | `string` | 是 | 发起请求的用户的邮箱。用于邮箱白名单验证。 |
+
+**成功响应**
 ```json
 {
   "url": "https://your-custom-domain.com/path/to/your/file.png",
@@ -152,17 +182,14 @@
 }
 ```
 
-##### 错误响应
+**错误响应**
 
 - `400 Bad Request`: 请求缺少必需的参数。
 - `401 Unauthorized`: 认证失败。
 - `403 Forbidden`: 邮箱不在白名单中。
 - `500 Internal Server Error`: 服务器内部错误或配置错误。
 
-```txt
-npm install
-npm run dev
-```
+
 
 ## 许可证
 

@@ -87,8 +87,9 @@ test('POST /upload should upload a file with valid auth', async ({ expect }) => 
   const formData = new FormData()
   formData.append('file', file)
   formData.append('path', 'images')
+  formData.append('bucket', 'main_r2')
 
-  const res = await app.request('/upload?bucket=main_r2', {
+  const res = await app.request('/upload', {
     method: 'POST',
     body: formData,
     headers: {

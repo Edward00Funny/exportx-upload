@@ -64,7 +64,7 @@ test('authMiddleware should call next() for valid token when no bucket is specif
   expect(await res.text()).toBe('OK')
 })
 
-test('authMiddleware should return 400 if bucket is specified but config is missing', async ({ expect }) => {
+test('authMiddleware should return 500 if bucket is specified but config is missing', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)

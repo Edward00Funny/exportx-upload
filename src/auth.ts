@@ -31,9 +31,19 @@ export const authMiddleware = createMiddleware<AuthContext & { Bindings: Binding
     return c.json({ error: 'Unauthorized: Invalid token.' }, 401);
   }
 
-  // Get bucket from form data (optional)
-  const formData = await c.req.formData()
-  const bucketName = formData.get('bucket')?.toString()
+  // Get bucket from query params first, then from form data if it's a POST request
+  let bucketName = c.req.query('bucket');
+
+  // If not in query params and it's a POST request, try to get from form data
+  if (!bucketName && c.req.method === 'POST') {
+    try {
+      const formData = await c.req.formData()
+      bucketName = formData.get('bucket')?.toString()
+    } catch (error) {
+      // If form data parsing fails, that's ok, bucket might be in query params
+      // or the request might not need bucket validation
+    }
+  }
 
   // If a bucket is specified, perform bucket-level validation
   if (bucketName) {
@@ -61,8 +71,6 @@ export const authMiddleware = createMiddleware<AuthContext & { Bindings: Binding
     }
     // Pass bucket config to the next middleware/handler
     c.set('bucketConfig', bucketConfig);
-  } else {
-    return c.json({ error: 'Unauthorized: Bucket name is required.' }, 401);
   }
 
   await next();
