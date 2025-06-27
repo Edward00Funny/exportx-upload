@@ -31,8 +31,9 @@ export const authMiddleware = createMiddleware<AuthContext & { Bindings: Binding
     return c.json({ error: 'Unauthorized: Invalid token.' }, 401);
   }
 
-  // Get bucket from query parameter (optional)
-  const bucketName = c.req.query('bucket')
+  // Get bucket from form data (optional)
+  const formData = await c.req.formData()
+  const bucketName = formData.get('bucket')?.toString()
 
   // If a bucket is specified, perform bucket-level validation
   if (bucketName) {
@@ -58,9 +59,10 @@ export const authMiddleware = createMiddleware<AuthContext & { Bindings: Binding
     if (!bucketConfig.emailWhitelist.includes(userEmail)) {
       return c.json({ error: 'Unauthorized: Email not in whitelist for this bucket.' }, 403);
     }
-
     // Pass bucket config to the next middleware/handler
     c.set('bucketConfig', bucketConfig);
+  } else {
+    return c.json({ error: 'Unauthorized: Bucket name is required.' }, 401);
   }
 
   await next();

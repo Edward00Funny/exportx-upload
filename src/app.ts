@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
-import { zValidator } from '@hono/zod-validator'
 import type { Bindings } from './bindings'
 import { authMiddleware } from './auth'
 import { uploadFile, UploadOptions, getAllBucketsConfig } from './storage'
@@ -68,42 +67,50 @@ app.get('/buckets', authMiddleware, async (c) => {
   }
 })
 
+// Upload validation schema
 const uploadSchema = z.object({
-  path: z.string().min(1, 'path is required.'),
+  path: z.string().min(1, 'path is required'),
   fileName: z.string().optional(),
   overwrite: z.preprocess((val) => val === 'true', z.boolean()).optional(),
-  file: z.any(),
-  bucket: z.string().min(1, 'bucket is required.'),
+  bucket: z.string().min(1, 'bucket is required'),
+  file: z.any().refine((file) => file instanceof File, 'file must be a valid File object'),
 });
 
 // Upload route
 app.post(
   '/upload',
   authMiddleware,
-  zValidator('form', uploadSchema, (result, c) => {
-    if (!result.success) {
-      return c.json({
-        success: false,
-        error: 'Validation failed',
-        message: result.error.flatten(),
-      }, 400)
-    }
-  }),
   async (c) => {
     try {
       const bucketConfig = c.get('bucketConfig');
       if (!bucketConfig) {
-        // This should technically not be reached if authMiddleware is correctly configured
-        // for the upload route to require a bucket.
         return c.json({ success: false, error: 'Bucket configuration not found in context.' }, 500);
       }
 
-      const { file, path, fileName, overwrite } = c.req.valid('form')
+      // Parse form data first
+      const formData = await c.req.parseBody();
 
-      if (!file || typeof file.arrayBuffer !== 'function') {
-        return c.json({ error: 'No file provided or form data is incorrect.' }, 400)
+      // Prepare data for zod validation
+      const uploadData = {
+        path: formData.path,
+        fileName: formData.fileName,
+        overwrite: formData.overwrite,
+        bucket: formData.bucket,
+        file: formData.file,
+      };
+
+      // Validate with zod
+      const validationResult = uploadSchema.safeParse(uploadData);
+
+      if (!validationResult.success) {
+        return c.json({
+          success: false,
+          error: 'Validation failed',
+          message: validationResult.error.flatten(),
+        }, 400);
       }
 
+      const { path, fileName, overwrite, file } = validationResult.data;
       const options: UploadOptions = {
         path,
         fileName,
@@ -114,7 +121,11 @@ app.post(
       return c.json(result)
     } catch (error: any) {
       console.error('Upload failed:', error.message)
-      return c.json({ error: 'Upload failed', message: error.message }, 500)
+      return c.json({
+        success: false,
+        error: 'Upload failed',
+        message: error.message
+      }, 500)
     }
   })
 
