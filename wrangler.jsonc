@@ -14,11 +14,5 @@
     // --- authentication and other config ---
     "AUTH_SECRET_KEY": "your_dev_secret_key_here",
     "PORT": "8080"
-  },
-  "r2_buckets": [
-    {
-      "binding": "R2_BUCKET",
-      "bucket_name": "my-bucket"
-    }
-  ]
+  }
 }
