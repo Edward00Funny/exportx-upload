@@ -3,6 +3,7 @@ import { HeadObjectCommand, S3, S3ClientConfig } from '@aws-sdk/client-s3';
 import { env } from 'hono/adapter'
 import { type Bindings, BucketConfig } from './bindings';
 import to from 'await-to-js';
+import { customAlphabet } from 'nanoid';
 
 // R2Bucket types are provided by Cloudflare Workers runtime
 declare global {
@@ -27,6 +28,21 @@ declare global {
       cacheExpiry?: Date;
     };
   }
+}
+
+const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', 21);
+
+function getFileExtension(filename: string): string {
+  const lastDot = filename.lastIndexOf('.');
+  if (lastDot < 1) { // Handles no extension and leading dot like .env
+    return '';
+  }
+  return filename.substring(lastDot);
+}
+
+function generateUniqueFileName(originalName: string): string {
+  const extension = getFileExtension(originalName);
+  return `${nanoid()}${extension}`;
 }
 
 export type UploadResult = {
@@ -148,7 +164,7 @@ async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file:
   }
 
   const path = options.path ? sanitizePath(options.path) : '';
-  const fileName = options.fileName || `${Date.now()}-${file.name.replace(/\s/g, '-')}`;
+  const fileName = options.fileName || generateUniqueFileName(file.name);
   const fileKey = path ? `${path}/${fileName}` : fileName;
 
   if (!options.overwrite) {
@@ -176,7 +192,7 @@ async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file:
     url = `${config.endpoint}/${fileKey}`; // Default path
   }
 
-  return { url, fileName: file.name };
+  return { url, fileName };
 }
 
 async function uploadToS3<E extends { Bindings: Bindings }>(c: Context<E>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
@@ -200,7 +216,7 @@ async function uploadToS3<E extends { Bindings: Bindings }>(c: Context<E>, file:
   const s3Client = new S3(s3ClientConfig);
 
   const path = options.path ? sanitizePath(options.path) : '';
-  const fileName = options.fileName || `${Date.now()}-${file.name.replace(/\s/g, '-')}`;
+  const fileName = options.fileName || generateUniqueFileName(file.name);
   const fileKey = path ? `${path}/${fileName}` : fileName;
 
   if (!options.overwrite) {
@@ -232,7 +248,7 @@ async function uploadToS3<E extends { Bindings: Bindings }>(c: Context<E>, file:
     url = `${config.endpoint}/${config.bucketName}/${fileKey}`;
   }
 
-  return { url, fileName: file.name };
+  return { url, fileName };
 }
 
 /**
