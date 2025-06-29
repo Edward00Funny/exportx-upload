@@ -173,7 +173,7 @@ async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file:
   if (config.customDomain) {
     url = `${config.customDomain}/${fileKey}`;
   } else {
-    url = `/files/${fileKey}`; // Default path
+    url = `${config.endpoint}/${fileKey}`; // Default path
   }
 
   return { url, fileName: file.name };

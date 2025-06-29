@@ -18,7 +18,7 @@
 ## 部署
 
 选择最适合您需求的平台。
-
+ 
 ### 1. Cloudflare Workers（推荐）
 
 [![部署到 Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Edward00Funny/exportx-upload)
