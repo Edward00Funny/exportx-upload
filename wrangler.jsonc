@@ -9,6 +9,8 @@
     "BUCKET_main_r2_BINDING_NAME": "R2_BUCKET",
     "BUCKET_main_r2_CUSTOM_DOMAIN": "",
     "BUCKET_main_r2_EMAIL_WHITELIST": "your-email@example.com",
+    "BUCKET_main_r2_ALLOWED_PATHS": "files,images,public/icons",
+    "BUCKET_main_r2_ALIAS": "your-bucket-alias",
     // --- authentication and other config ---
     "AUTH_SECRET_KEY": "your_dev_secret_key_here",
     "PORT": "8080"
