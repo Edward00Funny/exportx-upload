@@ -42,7 +42,9 @@ dev:
         - name: docker push
           script: docker push exportxabfree/exportx-upload:dev
     - name: build scf
-      dokcer:
+      services:
+        - docker
+      docker:
         image: node:18-alpine
       stages:
         - name: build scf
