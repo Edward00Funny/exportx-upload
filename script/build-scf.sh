@@ -1,9 +1,13 @@
-#!/bin/bash
+#!/bin/sh
 
 # Tencent Cloud Function automatic packaging script
 set -e
 
 echo "🚀 Starting to build Tencent Cloud Function package..."
+
+# 0. Install dependencies
+echo "📦 Installing dependencies..."
+npm install
 
 # 1. Build TypeScript project
 echo "📦 Building TypeScript project..."
