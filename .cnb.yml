@@ -1,3 +1,15 @@
+.sync_to_github: &sync_to_github
+  name: sync to github
+  imports:
+    - https://cnb.cool/hututux/env/-/blob/main/github/Edward00Funny.yml
+  image: tencentcom/git-sync
+  settings:
+    target_url: https://github.com/Edward00Funny/exportx-upload.git
+    auth_type: https
+    username: ${GIT_USERNAME}
+    password: ${GIT_ACCESS_TOKEN}
+
+
 dev:
   push:
     - services:
@@ -23,15 +35,7 @@ dev:
         - name: show tag
           script: echo $NEW_TAG
 
-        - name: sync to github
-          imports:
-            - https://cnb.cool/hututux/env/-/blob/main/github/Edward00Funny.yml
-          image: tencentcom/git-sync
-          settings:
-            target_url: https://github.com/Edward00Funny/exportx-upload.git
-            auth_type: https
-            username: ${GIT_USERNAME}
-            password: ${GIT_ACCESS_TOKEN}
+        - *sync_to_github
 
         - name: docker build
           script: docker build -t exportxabfree/exportx-upload:dev .
@@ -58,3 +62,6 @@ dev:
             coscli config add --init-skip=true -b $TENCENT_BUCKET -r $TENCENT_REGION
             coscli cp ./scf-package.zip cos://$TENCENT_BUCKET -r
  
+ 
+"**":
+  web_trigger_sync_to_github: *sync_to_github

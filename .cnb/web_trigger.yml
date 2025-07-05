@@ -1,0 +1,8 @@
+# .cnb/web_trigger.yml
+branch:
+  # 如下自定义按钮在所有分支详情页面显示
+  - buttons:
+    - name: Sync to github
+      description: Sync to github
+      event: web_trigger_sync_to_github
+    
