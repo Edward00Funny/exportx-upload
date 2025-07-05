@@ -1,4 +1,4 @@
-'**':
+dev:
   push:
     - services:
         - docker
@@ -41,7 +41,7 @@
           script: docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
         - name: docker push
           script: docker push exportxabfree/exportx-upload:dev
-    - services: build scf
+    - services:
         - docker
       stages:
         - name: build scf
