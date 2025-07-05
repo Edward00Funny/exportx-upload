@@ -45,7 +45,7 @@ dev:
         - docker
       stages:
         - name: build scf
-          script: pnpm build:scf
+          script: npm run build:scf
         - name: run with tencentcom/coscli
           image: tencentcom/coscli
           imports:
