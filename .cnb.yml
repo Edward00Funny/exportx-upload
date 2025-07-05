@@ -43,7 +43,7 @@ dev:
           script: docker push exportxabfree/exportx-upload:dev
     - name: build scf
       dokcer:
-        - node:18-alpine
+        image: node:18-alpine
       stages:
         - name: build scf
           script: npm run build:scf
