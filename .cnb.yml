@@ -41,8 +41,9 @@ dev:
           script: docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
         - name: docker push
           script: docker push exportxabfree/exportx-upload:dev
-    - services:
-        - docker
+    - name: build scf
+      dokcer:
+        - node:18-alpine
       stages:
         - name: build scf
           script: npm run build:scf
