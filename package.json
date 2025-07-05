@@ -1,31 +1,32 @@
 {
-  "name": "exportx-upload",
-  "version": "0.0.1",
-  "scripts": {
-    "dev": "wrangler dev -c wrangler.dev.jsonc",
-    "dev:node": "tsx watch src/adaptors/server.ts",
-    "deploy": "wrangler deploy src/adaptors/worker.ts",
-    "build": "tsc",
-    "start": "node dist/adaptors/server.js",
-    "test": "vitest run",
-    "coverage": "vitest run --coverage",
-    "cf-typegen": "wrangler types"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.835.0",
-    "@hono/node-server": "^1.14.4",
-    "await-to-js": "^3.0.0",
-    "hono": "^4.8.3",
-    "nanoid": "^5.1.5",
-    "zod": "^3.25.67"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250620.0",
-    "@types/node": "^24.0.4",
-    "@vitest/coverage-v8": "^3.2.4",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4",
-    "wrangler": "^4.4.0"
-  }
+	"name": "exportx-upload",
+	"version": "0.0.1",
+	"scripts": {
+		"dev": "wrangler dev -c wrangler.dev.jsonc",
+		"dev:node": "tsx watch src/adaptors/server.ts",
+		"deploy": "wrangler deploy src/adaptors/worker.ts",
+		"build": "rm -rf dist && tsc",
+		"start": "node dist/adaptors/server.js",
+		"test": "vitest run",
+		"coverage": "vitest run --coverage",
+		"cf-typegen": "wrangler types",
+		"build:scf": "chmod +x script/build-scf.sh && ./script/build-scf.sh"
+	},
+	"dependencies": {
+		"@aws-sdk/client-s3": "^3.835.0",
+		"@hono/node-server": "^1.14.4",
+		"await-to-js": "^3.0.0",
+		"hono": "^4.8.3",
+		"nanoid": "3.3.6",
+		"zod": "^3.25.67"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20250620.0",
+		"@types/node": "^24.0.4",
+		"@vitest/coverage-v8": "^3.2.4",
+		"tsx": "^4.20.3",
+		"typescript": "^5.8.3",
+		"vitest": "^3.2.4",
+		"wrangler": "^4.4.0"
+	}
 }

@@ -1,2 +1,2 @@
 #!/bin/sh
-/var/lang/node18/bin/node ./dist/src/adaptors/server.js
+/var/lang/node18/bin/node dist/src/adaptors/sfc.js

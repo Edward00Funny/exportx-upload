@@ -34,3 +34,6 @@ Thumbs.db
 # Logs
 *.log
 .wrangler
+
+# package
+scf-package.zip

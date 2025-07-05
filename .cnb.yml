@@ -41,3 +41,17 @@
           script: docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
         - name: docker push
           script: docker push exportxabfree/exportx-upload:dev
+    - services: build scf
+        - docker
+      stages:
+        - name: build scf
+          script: pnpm build:scf
+        - name: run with tencentcom/coscli
+          image: tencentcom/coscli
+          imports:
+            - https://cnb.cool/hututux/env/-/blob/main/s3/cos.yml
+          script: |
+            coscli config set --secret_id $TENCENT_SECRET_ID --secret_key $TENCENT_SECRET_KEY 
+            coscli config add --init-skip=true -b $TENCENT_BUCKET -r $TENCENT_REGION
+            coscli cp ./scf-package.zip cos://$TENCENT_BUCKET -r
+ 

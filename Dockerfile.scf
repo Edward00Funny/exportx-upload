@@ -1,0 +1,32 @@
+# Dockerfile for Tencent Cloud Function packaging
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json
+COPY package.json ./
+
+# Install production dependencies using npm (Tencent Cloud Function only supports npm)
+RUN npm install --production --no-package-lock
+
+# Copy build artifacts and startup script
+COPY dist ./dist
+COPY scf_bootstrap ./
+
+# Install zip tool
+RUN apk add --no-cache zip
+
+# Set startup script permissions
+RUN chmod +x scf_bootstrap
+
+# Create packaging script
+RUN echo '#!/bin/sh' > /app/pack.sh && \
+    echo 'echo "Starting to package Tencent Cloud Function..."' >> /app/pack.sh && \
+    echo 'zip -r scf-package.zip dist package.json scf_bootstrap node_modules' >> /app/pack.sh && \
+    echo 'echo "Packaging completed! Generated file: scf-package.zip"' >> /app/pack.sh && \
+    echo 'ls -la scf-package.zip' >> /app/pack.sh && \
+    chmod +x /app/pack.sh
+
+# Default command executes packaging
+CMD ["/app/pack.sh"] 
