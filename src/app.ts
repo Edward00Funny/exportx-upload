@@ -10,7 +10,7 @@ const app = new Hono<{ Bindings: Bindings }>()
 // Configure CORS middleware
 app.use('*', cors({
   origin: '*',
-  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Email'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
   allowMethods: ['GET', 'POST', 'OPTIONS'],
 }))
 
@@ -25,14 +25,14 @@ app.get('/buckets', authMiddleware, async (c) => {
     const allBucketsConfig = getAllBucketsConfig(c);
     let filteredBuckets = allBucketsConfig;
 
-    const userEmail = c.req.header('X-User-Email');
-    if (!userEmail) {
-      // If email is required but not provided, return no buckets
+    const userId = c.req.header('X-User-Id');
+    if (!userId) {
+      // If user id is required but not provided, return no buckets
       filteredBuckets = {};
     } else {
       filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
         // A bucket is only accessible if it has a whitelist and the user is in it.
-        if (config.emailWhitelist && config.emailWhitelist.includes(userEmail)) {
+        if (config.idWhitelist && config.idWhitelist.includes(userId)) {
           acc[bucketName] = config;
         }
         return acc;

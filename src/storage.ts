@@ -117,8 +117,8 @@ export function getBucketConfig<E extends { Bindings: Bindings }>(c: Context<E>,
     allowedPaths: envVars[`${prefix}ALLOWED_PATHS`] ?
       envVars[`${prefix}ALLOWED_PATHS`].split(',').map((path: string) => path.trim()) :
       ['*'], // Default to allow all paths
-    emailWhitelist: envVars[`${prefix}EMAIL_WHITELIST`] ?
-      envVars[`${prefix}EMAIL_WHITELIST`].split(',').map((email: string) => email.trim()) :
+    idWhitelist: envVars[`${prefix}ID_WHITELIST`] ?
+      envVars[`${prefix}ID_WHITELIST`].split(',').map((id: string) => id.trim()) :
       undefined, // Default to undefined if not set
   };
 

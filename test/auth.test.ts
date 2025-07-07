@@ -77,9 +77,9 @@ test('authMiddleware should return 500 if bucket is specified but config is miss
   expect(res.status).toBe(500) // 500 for config error
 })
 
-test('authMiddleware should return 503 if email whitelist is not configured on bucket', async ({ expect }) => {
+test('authMiddleware should return 503 if id whitelist is not configured on bucket', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  // Stub bucket config WITHOUT email whitelist
+  // Stub bucket config WITHOUT id whitelist
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
 
@@ -93,14 +93,14 @@ test('authMiddleware should return 503 if email whitelist is not configured on b
   const res = await app.fetch(req)
 
   expect(res.status).toBe(503)
-  expect(await res.json()).toEqual({ error: 'Service unavailable: Email whitelist not configured for this bucket.' })
+  expect(await res.json()).toEqual({ error: 'Service unavailable: ID whitelist not configured for this bucket.' })
 })
 
-test('authMiddleware should return 401 if email is not provided', async ({ expect }) => {
+test('authMiddleware should return 401 if user id is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
-  vi.stubEnv('BUCKET_test_bucket_EMAIL_WHITELIST', 'test@example.com')
+  vi.stubEnv('BUCKET_test_bucket_ID_WHITELIST', 'test-user-id')
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -113,11 +113,11 @@ test('authMiddleware should return 401 if email is not provided', async ({ expec
   expect(res.status).toBe(401)
 })
 
-test('authMiddleware should return 403 if email is not in bucket whitelist', async ({ expect }) => {
+test('authMiddleware should return 403 if user id is not in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
-  vi.stubEnv('BUCKET_test_bucket_EMAIL_WHITELIST', 'test@example.com')
+  vi.stubEnv('BUCKET_test_bucket_ID_WHITELIST', 'test-user-id')
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -126,19 +126,19 @@ test('authMiddleware should return 403 if email is not in bucket whitelist', asy
   const req = new Request('http://localhost/?bucket=test_bucket', {
     headers: {
       Authorization: 'Bearer secret1',
-      'X-User-Email': 'other@example.com',
+      'X-User-Id': 'other-user-id',
     },
   })
   const res = await app.fetch(req)
   expect(res.status).toBe(403)
-  expect(await res.json()).toEqual({ error: 'Unauthorized: Email not in whitelist for this bucket.' })
+  expect(await res.json()).toEqual({ error: 'Unauthorized: User ID not in whitelist for this bucket.' })
 })
 
-test('authMiddleware should call next() for valid token and email in bucket whitelist', async ({ expect }) => {
+test('authMiddleware should call next() for valid token and user id in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
-  vi.stubEnv('BUCKET_test_bucket_EMAIL_WHITELIST', 'test@example.com')
+  vi.stubEnv('BUCKET_test_bucket_ID_WHITELIST', 'test-user-id')
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -147,7 +147,7 @@ test('authMiddleware should call next() for valid token and email in bucket whit
   const req = new Request('http://localhost/?bucket=test_bucket', {
     headers: {
       Authorization: 'Bearer secret1',
-      'X-User-Email': 'test@example.com',
+      'X-User-Id': 'test-user-id',
     },
   })
   const res = await app.fetch(req)

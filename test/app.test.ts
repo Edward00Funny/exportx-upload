@@ -29,19 +29,19 @@ test('GET / should return OK', async ({ expect }) => {
   expect(await res.text()).toBe('OK')
 });
 
-test('GET /buckets returns only whitelisted buckets for the given user email', async ({ expect }) => {
+test('GET /buckets returns only whitelisted buckets for the given user id', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
 
   (getAllBucketsConfig as Mock).mockReturnValue({
-    'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user1@example.com'] },
-    'bucket2': { provider: 'AWS_S3', emailWhitelist: ['user2@example.com'] },
+    'bucket1': { provider: 'CLOUDFLARE_R2', idWhitelist: ['user1-id'] },
+    'bucket2': { provider: 'AWS_S3', idWhitelist: ['user2-id'] },
     'private_bucket': { provider: 'AWS_S3' } // No whitelist, should not be visible to anyone
   });
 
   const req = new Request('http://localhost/buckets', {
     headers: {
       'Authorization': 'Bearer test-secret',
-      'X-User-Email': 'user1@example.com'
+      'X-User-Id': 'user1-id'
     }
   });
 
@@ -52,11 +52,11 @@ test('GET /buckets returns only whitelisted buckets for the given user email', a
   expect(data.buckets[0].name).toBe('bucket1');
 });
 
-test('GET /buckets returns empty list if email is not provided', async ({ expect }) => {
+test('GET /buckets returns empty list if user id is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
 
   (getAllBucketsConfig as Mock).mockReturnValue({
-    'bucket1': { provider: 'CLOUDFLARE_R2', emailWhitelist: ['user@example.com'] },
+    'bucket1': { provider: 'CLOUDFLARE_R2', idWhitelist: ['user-id'] },
   });
 
   const req = new Request('http://localhost/buckets', {
@@ -81,7 +81,7 @@ test('POST /upload should upload a file with valid auth', async ({ expect }) => 
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret')
   vi.stubEnv('BUCKET_main_r2_PROVIDER', "CLOUDFLARE_R2")
   vi.stubEnv('BUCKET_main_r2_BINDING_NAME', "R2_MAIN_BUCKET")
-  vi.stubEnv('BUCKET_main_r2_EMAIL_WHITELIST', 'test@example.com')
+  vi.stubEnv('BUCKET_main_r2_ID_WHITELIST', 'test-user-id')
 
   const file = new File(['dummy content'], 'test.png', { type: 'image/png' })
   const formData = new FormData()
@@ -94,7 +94,7 @@ test('POST /upload should upload a file with valid auth', async ({ expect }) => 
     body: formData,
     headers: {
       Authorization: 'Bearer test-secret',
-      'X-User-Email': 'test@example.com',
+      'X-User-Id': 'test-user-id',
     },
   })
 

@@ -65,5 +65,5 @@ export type BucketConfig = {
   bindingName?: string; // Only for Cloudflare R2
   alias?: string; // Bucket alias for user-friendly display
   allowedPaths?: string[]; // List of allowed paths, e.g. ["images", "documents"] or ["*"] for all paths
-  emailWhitelist?: string[]; // Email whitelist for this bucket
+  idWhitelist?: string[]; // ID whitelist for this bucket
 };

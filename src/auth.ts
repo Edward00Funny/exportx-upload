@@ -55,19 +55,19 @@ export const authMiddleware = createMiddleware<AuthContext & { Bindings: Binding
       return c.json({ error: 'Configuration error for the specified bucket.' }, 500);
     }
 
-    // Check email whitelist for the bucket
-    if (!bucketConfig.emailWhitelist || bucketConfig.emailWhitelist.length === 0) {
-      console.error(`Email whitelist is required for bucket '${bucketName}'`);
-      return c.json({ error: 'Service unavailable: Email whitelist not configured for this bucket.' }, 503);
+    // Check id whitelist for the bucket
+    if (!bucketConfig.idWhitelist || bucketConfig.idWhitelist.length === 0) {
+      console.error(`ID whitelist is required for bucket '${bucketName}'`);
+      return c.json({ error: 'Service unavailable: ID whitelist not configured for this bucket.' }, 503);
     }
 
-    const userEmail = c.req.header('X-User-Email');
-    if (!userEmail) {
-      return c.json({ error: 'Unauthorized: User email required for whitelist validation.' }, 401);
+    const userId = c.req.header('X-User-Id');
+    if (!userId) {
+      return c.json({ error: 'Unauthorized: User ID required for whitelist validation.' }, 401);
     }
 
-    if (!bucketConfig.emailWhitelist.includes(userEmail)) {
-      return c.json({ error: 'Unauthorized: Email not in whitelist for this bucket.' }, 403);
+    if (!bucketConfig.idWhitelist.includes(userId)) {
+      return c.json({ error: 'Unauthorized: User ID not in whitelist for this bucket.' }, 403);
     }
     // Pass bucket config to the next middleware/handler
     c.set('bucketConfig', bucketConfig);

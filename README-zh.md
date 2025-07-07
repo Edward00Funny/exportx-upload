@@ -81,7 +81,7 @@
       -e AUTH_SECRET_KEY="your_secure_secret_key" \
       -e BUCKET_main_r2_PROVIDER="CLOUDFLARE_R2" \
       -e BUCKET_main_r2_BINDING_NAME="R2_MAIN_BUCKET" \
-      -e BUCKET_main_r2_EMAIL_WHITELIST="your-email@example.com" \
+      -e BUCKET_main_r2_ID_WHITELIST="your-user-id" \
       -v /path/to/your/cloudflare/creds:/root/.wrangler \
       exportx-upload:latest
     ```
@@ -99,7 +99,7 @@
 | --- | --- | --- | --- |
 | `BUCKET_{name}_*` | | 是 | 用于定义一个存储桶。例如 `BUCKET_main_r2_PROVIDER`。详细配置请看 `wrangler.jsonc`。 |
 | `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | 否 | 允许上传的路径列表，逗号分隔。`*` 表示允许所有路径。 |
-| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | 否 | 针对此存储桶的邮箱白名单，逗号分隔。白名单为必填项。 |
+| `BUCKET_{name}_ID_WHITELIST` | `user1-id,user2-id` | 否 | 针对此存储桶的用户ID白名单，逗号分隔。白名单为必填项。 |
 
 ### 全局认证配置
 
@@ -127,7 +127,7 @@
 | Header | Type | Required | Description |
 | --- | --- | --- | --- |
 | `Authorization` | `string` | 是 | Bearer Token。格式为 `Bearer {AUTH_SECRET_KEY}`。 |
-| `X-User-Email` | `string` | 是 | 发起请求的用户的邮箱。用于邮箱白名单验证。 |
+| `X-User-Id` | `string` | 是 | 发起请求的用户的ID。用于用户ID白名单验证。 |
 
 **成功响应**
 
@@ -172,7 +172,7 @@
 | Header | Type | Required | Description |
 | --- | --- | --- | --- |
 | `Authorization` | `string` | 是 | Bearer Token。格式为 `Bearer {AUTH_SECRET_KEY}`。 |
-| `X-User-Email` | `string` | 是 | 发起请求的用户的邮箱。用于邮箱白名单验证。 |
+| `X-User-Id` | `string` | 是 | 发起请求的用户的ID。用于用户ID白名单验证。 |
 
 **成功响应**
 ```json
@@ -186,7 +186,7 @@
 
 - `400 Bad Request`: 请求缺少必需的参数。
 - `401 Unauthorized`: 认证失败。
-- `403 Forbidden`: 邮箱不在白名单中。
+- `403 Forbidden`: 用户ID不在白名单中。
 - `500 Internal Server Error`: 服务器内部错误或配置错误。
 
 

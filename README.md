@@ -106,7 +106,7 @@ This service is configured entirely through environment variables. Please refer 
 | --- | --- | --- | --- |
 | `BUCKET_{name}_*` | | Yes | Defines a bucket. For example, `BUCKET_main_r2_PROVIDER`. See `wrangler.jsonc` for details. |
 | `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | No | List of allowed upload paths, comma-separated. `*` allows all paths. |
-| `BUCKET_{name}_EMAIL_WHITELIST` | `user1@example.com,user2@example.com` | No | Email whitelist for this bucket, comma-separated. This whitelist is required for the bucket to be accessible. |
+| `BUCKET_{name}_ID_WHITELIST` | `user1-id,user2-id` | No | User ID whitelist for this bucket, comma-separated. This whitelist is required for the bucket to be accessible. |
 
 ### Global Authentication Configuration
 
@@ -149,7 +149,7 @@ Uploads a file to the specified bucket.
 | Header | Type | Required | Description |
 | --- | --- | --- | --- |
 | `Authorization` | `string` | Yes | Bearer Token. Format: `Bearer {AUTH_SECRET_KEY}`. |
-| `X-User-Email` | `string` | Yes | The email of the user making the request. Required for email whitelist validation. |
+| `X-User-Id` | `string` | Yes | The ID of the user making the request. Required for ID whitelist validation. |
 
 ##### Success Response (`200 OK`)
 ```json
@@ -163,7 +163,7 @@ Uploads a file to the specified bucket.
 
 - `400 Bad Request`: Missing required parameters.
 - `401 Unauthorized`: Authentication failed.
-- `403 Forbidden`: Email not in whitelist.
+- `403 Forbidden`: User ID not in whitelist.
 - `500 Internal Server Error`: Server-side or configuration error.
 
 ```txt
