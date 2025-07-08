@@ -64,7 +64,7 @@ test('authMiddleware should call next() for valid token when no bucket is specif
   expect(await res.text()).toBe('OK')
 })
 
-test('authMiddleware should return 500 if bucket is specified but config is missing', async ({ expect }) => {
+test('authMiddleware should pass through with valid token even when bucket is specified (bucket validation is handled elsewhere)', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -74,10 +74,11 @@ test('authMiddleware should return 500 if bucket is specified but config is miss
     headers: { Authorization: 'Bearer secret1' },
   })
   const res = await app.fetch(req)
-  expect(res.status).toBe(500) // 500 for config error
+  expect(res.status).toBe(200) // authMiddleware only validates tokens
+  expect(await res.text()).toBe('OK')
 })
 
-test('authMiddleware should return 503 if id whitelist is not configured on bucket', async ({ expect }) => {
+test('authMiddleware should pass through with valid token even when bucket config has no id whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   // Stub bucket config WITHOUT id whitelist
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
@@ -92,11 +93,11 @@ test('authMiddleware should return 503 if id whitelist is not configured on buck
   })
   const res = await app.fetch(req)
 
-  expect(res.status).toBe(503)
-  expect(await res.json()).toEqual({ error: 'Service unavailable: ID whitelist not configured for this bucket.' })
+  expect(res.status).toBe(200) // authMiddleware only validates tokens
+  expect(await res.text()).toBe('OK')
 })
 
-test('authMiddleware should return 401 if user id is not provided', async ({ expect }) => {
+test('authMiddleware should pass through with valid token even when user id is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
@@ -110,10 +111,11 @@ test('authMiddleware should return 401 if user id is not provided', async ({ exp
     headers: { Authorization: 'Bearer secret1' },
   })
   const res = await app.fetch(req)
-  expect(res.status).toBe(401)
+  expect(res.status).toBe(200) // authMiddleware only validates tokens
+  expect(await res.text()).toBe('OK')
 })
 
-test('authMiddleware should return 403 if user id is not in bucket whitelist', async ({ expect }) => {
+test('authMiddleware should pass through with valid token even when user id is not in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
   vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
@@ -130,8 +132,8 @@ test('authMiddleware should return 403 if user id is not in bucket whitelist', a
     },
   })
   const res = await app.fetch(req)
-  expect(res.status).toBe(403)
-  expect(await res.json()).toEqual({ error: 'Unauthorized: User ID not in whitelist for this bucket.' })
+  expect(res.status).toBe(200) // authMiddleware only validates tokens
+  expect(await res.text()).toBe('OK')
 })
 
 test('authMiddleware should call next() for valid token and user id in bucket whitelist', async ({ expect }) => {

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { to } from 'await-to-js'
 import type { Bindings } from './bindings'
 import { authMiddleware } from './auth'
-import { uploadFile, UploadOptions, getAllBucketsConfig, validateBucketAccess, type CompatibleFile } from './storage'
+import { uploadFile, UploadOptions, getAllBucketsConfig, validateBucketAccess } from './storage'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
