@@ -5,6 +5,14 @@ import { type Bindings, BucketConfig } from './bindings';
 import to from 'await-to-js';
 import { customAlphabet } from 'nanoid';
 
+// compatible file interface, applicable to Cloudflare Workers and Node.js environment
+export interface CompatibleFile {
+  name: string;
+  type: string;
+  size?: number;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
 // R2Bucket types are provided by Cloudflare Workers runtime
 declare global {
   interface R2Bucket {
@@ -198,7 +206,7 @@ async function checkS3FileExists(s3Client: S3, bucket: string, key: string): Pro
   return err === null;
 }
 
-async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
+async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file: CompatibleFile, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
   if (!config.bindingName) {
     throw new Error('R2 configuration error: missing bindingName');
   }
@@ -241,7 +249,7 @@ async function uploadToR2<E extends { Bindings: Bindings }>(c: Context<E>, file:
   return { url, fileName };
 }
 
-async function uploadToS3<E extends { Bindings: Bindings }>(c: Context<E>, file: File, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
+async function uploadToS3<E extends { Bindings: Bindings }>(c: Context<E>, file: CompatibleFile, config: BucketConfig, options: UploadOptions): Promise<UploadResult> {
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName || !config.endpoint || !config.region) {
     throw new Error('S3 configuration incomplete');
   }
@@ -330,7 +338,7 @@ export function getAllBucketsConfig<E extends { Bindings: Bindings }>(c: Context
 /**
  * Upload file to the specified storage
  */
-export async function uploadFile<E extends { Bindings: Bindings }>(c: Context<E>, file: File, options: UploadOptions, config: BucketConfig): Promise<UploadResult> {
+export async function uploadFile<E extends { Bindings: Bindings }>(c: Context<E>, file: CompatibleFile, options: UploadOptions, config: BucketConfig): Promise<UploadResult> {
   // Validate path against allowed paths in the bucket config
   if (!validatePath(options.path, config.allowedPaths || ['*'])) {
     throw new Error(`Path '${options.path}' is not allowed for this bucket.`);

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { to } from 'await-to-js'
 import type { Bindings } from './bindings'
 import { authMiddleware } from './auth'
-import { uploadFile, UploadOptions, getAllBucketsConfig, validateBucketAccess } from './storage'
+import { uploadFile, UploadOptions, getAllBucketsConfig, validateBucketAccess, type CompatibleFile } from './storage'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -123,7 +123,7 @@ app.post(
     };
 
     const file = formData.file;
-    if (!file || !(file instanceof File)) {
+    if (!file || typeof file !== 'object' || !('name' in file) || !('type' in file) || typeof file.arrayBuffer !== 'function') {
       return c.json({
         success: false,
         error: 'File not found or invalid',
