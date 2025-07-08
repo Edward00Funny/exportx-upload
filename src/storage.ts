@@ -90,6 +90,52 @@ function validatePath(requestedPath: string, allowedPaths: string[]): boolean {
 }
 
 /**
+ * validate bucket and user permission
+ */
+export function validateBucketAccess<E extends { Bindings: Bindings }>(
+  c: Context<E>,
+  bucketName: string,
+  userId?: string
+): { isValid: boolean; error?: string; bucketConfig?: BucketConfig } {
+  let bucketConfig: BucketConfig;
+
+  try {
+    bucketConfig = getBucketConfig(c, bucketName);
+  } catch (error: any) {
+    console.error(`Failed to get config for bucket '${bucketName}':`, error.message);
+    return {
+      isValid: false,
+      error: 'Configuration error for the specified bucket.'
+    };
+  }
+
+  // check bucket's ID whitelist
+  if (!bucketConfig.idWhitelist || bucketConfig.idWhitelist.length === 0) {
+    console.error(`ID whitelist is required for bucket '${bucketName}'`);
+    return {
+      isValid: false,
+      error: 'Service unavailable: ID whitelist not configured for this bucket.'
+    };
+  }
+
+  if (!userId) {
+    return {
+      isValid: false,
+      error: 'Unauthorized: User ID required for whitelist validation.'
+    };
+  }
+
+  if (!bucketConfig.idWhitelist.includes(userId)) {
+    return {
+      isValid: false,
+      error: 'Unauthorized: User ID not in whitelist for this bucket.'
+    };
+  }
+
+  return { isValid: true, bucketConfig };
+}
+
+/**
  * Get bucket configuration from environment variables
  */
 export function getBucketConfig<E extends { Bindings: Bindings }>(c: Context<E>, bucketName: string): BucketConfig {

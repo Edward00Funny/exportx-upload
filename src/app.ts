@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
+import { to } from 'await-to-js'
 import type { Bindings } from './bindings'
 import { authMiddleware } from './auth'
-import { uploadFile, UploadOptions, getAllBucketsConfig } from './storage'
+import { uploadFile, UploadOptions, getAllBucketsConfig, validateBucketAccess } from './storage'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -21,50 +22,41 @@ app.get('/', (c) => {
 
 // Get bucket configurations route
 app.get('/buckets', authMiddleware, async (c) => {
-  try {
-    const allBucketsConfig = getAllBucketsConfig(c);
-    let filteredBuckets = allBucketsConfig;
+  const allBucketsConfig = getAllBucketsConfig(c);
+  let filteredBuckets = allBucketsConfig;
 
-    const userId = c.req.header('X-User-Id');
-    if (!userId) {
-      // If user id is required but not provided, return no buckets
-      filteredBuckets = {};
-    } else {
-      filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
-        // A bucket is only accessible if it has a whitelist and the user is in it.
-        if (config.idWhitelist && config.idWhitelist.includes(userId)) {
-          acc[bucketName] = config;
-        }
-        return acc;
-      }, {} as Record<string, typeof allBucketsConfig[string]>);
-    }
-
-    // Build public configuration information, hiding sensitive data
-    const publicConfig = Object.entries(filteredBuckets).map(([bucketName, config]) => ({
-      name: bucketName,
-      provider: config.provider,
-      bucketName: config.bucketName,
-      region: config.region,
-      endpoint: config.endpoint?.replace(/\/+$/, ''), // Remove trailing slashes
-      customDomain: config.customDomain?.replace(/\/+$/, ''), // Remove trailing slashes
-      bindingName: config.bindingName,
-      alias: config.alias || bucketName, // Use alias or bucket name
-      allowedPaths: config.allowedPaths || ['*'], // Return allowed paths
-      // Do not return sensitive information like accessKeyId and secretAccessKey
-    }));
-
-    return c.json({
-      success: true,
-      buckets: publicConfig,
-    });
-  } catch (error: any) {
-    console.error('Failed to get bucket configuration:', error.message);
-    return c.json({
-      success: false,
-      error: 'Failed to get bucket configuration',
-      message: error.message
-    }, 500);
+  const userId = c.req.header('X-User-Id');
+  if (!userId) {
+    // If user id is required but not provided, return no buckets
+    filteredBuckets = {};
+  } else {
+    filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
+      // A bucket is only accessible if it has a whitelist and the user is in it.
+      if (config.idWhitelist && config.idWhitelist.includes(userId)) {
+        acc[bucketName] = config;
+      }
+      return acc;
+    }, {} as Record<string, typeof allBucketsConfig[string]>);
   }
+
+  // Build public configuration information, hiding sensitive data
+  const publicConfig = Object.entries(filteredBuckets).map(([bucketName, config]) => ({
+    name: bucketName,
+    provider: config.provider,
+    bucketName: config.bucketName,
+    region: config.region,
+    endpoint: config.endpoint?.replace(/\/+$/, ''), // Remove trailing slashes
+    customDomain: config.customDomain?.replace(/\/+$/, ''), // Remove trailing slashes
+    bindingName: config.bindingName,
+    alias: config.alias || bucketName, // Use alias or bucket name
+    allowedPaths: config.allowedPaths || ['*'], // Return allowed paths
+    // Do not return sensitive information like accessKeyId and secretAccessKey
+  }));
+
+  return c.json({
+    success: true,
+    buckets: publicConfig,
+  });
 })
 
 // Upload validation schema
@@ -80,56 +72,75 @@ app.post(
   '/upload',
   authMiddleware,
   async (c) => {
-    try {
-      const bucketConfig = c.get('bucketConfig');
-      if (!bucketConfig) {
-        return c.json({ success: false, error: 'Bucket configuration not found in context.' }, 500);
-      }
+    // Parse form data first
+    const [parseErr, formData] = await to(c.req.parseBody());
 
-      // Parse form data first
-      const formData = await c.req.parseBody();
+    if (parseErr) {
+      console.error('Failed to parse form data:', parseErr.message)
+      return c.json({
+        success: false,
+        error: 'Failed to parse form data',
+        message: parseErr.message
+      }, 400)
+    }
 
-      // Prepare data for zod validation
-      const uploadData = {
-        path: formData.path,
-        fileName: formData.fileName,
-        overwrite: formData.overwrite,
-        bucket: formData.bucket,
-      };
+    // Prepare data for zod validation
+    const uploadData = {
+      path: formData.path,
+      fileName: formData.fileName,
+      overwrite: formData.overwrite,
+      bucket: formData.bucket,
+    };
 
-      // Validate with zod
-      const validationResult = uploadSchema.safeParse(uploadData);
+    // Validate with zod
+    const validationResult = uploadSchema.safeParse(uploadData);
 
-      if (!validationResult.success) {
-        return c.json({
-          success: false,
-          error: 'Validation failed',
-          message: validationResult.error.flatten(),
-        }, 400);
-      }
-      const { path, fileName, overwrite } = validationResult.data;
-      const options: UploadOptions = {
-        path,
-        fileName,
-        overwrite,
-      };
-      const file = formData.file;
-      if (!file || !(file instanceof File)) {
-        return c.json({
-          success: false,
-          error: 'File not found or invalid',
-        }, 400);
-      }
-      const result = await uploadFile(c, file, options, bucketConfig)
-      return c.json(result)
-    } catch (error: any) {
-      console.error('Upload failed:', error.message)
+    if (!validationResult.success) {
+      return c.json({
+        success: false,
+        error: 'Validation failed',
+        message: validationResult.error.flatten(),
+      }, 400);
+    }
+
+    const { path, fileName, overwrite, bucket } = validationResult.data;
+
+    // validate bucket and user permission
+    const userId = c.req.header('X-User-Id');
+    const bucketValidation = validateBucketAccess(c, bucket, userId);
+
+    if (!bucketValidation.isValid) {
+      const statusCode = bucketValidation.error?.includes('not configured') ? 503 :
+        bucketValidation.error?.includes('not in whitelist') ? 403 : 401;
+      return c.json({ error: bucketValidation.error }, statusCode);
+    }
+
+    const bucketConfig = bucketValidation.bucketConfig!;
+    const options: UploadOptions = {
+      path,
+      fileName,
+      overwrite,
+    };
+
+    const file = formData.file;
+    if (!file || !(file instanceof File)) {
+      return c.json({
+        success: false,
+        error: 'File not found or invalid',
+      }, 400);
+    }
+
+    const [uploadErr, result] = await to(uploadFile(c, file, options, bucketConfig));
+
+    if (uploadErr) {
+      console.error('Upload failed:', uploadErr.message)
       return c.json({
         success: false,
         error: 'Upload failed',
-        message: error.message
+        message: uploadErr.message
       }, 500)
     }
+    return c.json(result)
   })
 
 export { app }  
