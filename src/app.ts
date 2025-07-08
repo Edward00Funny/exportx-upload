@@ -73,7 +73,6 @@ const uploadSchema = z.object({
   fileName: z.string().optional(),
   overwrite: z.preprocess((val) => val === 'true', z.boolean()).optional(),
   bucket: z.string().min(1, 'bucket is required'),
-  file: z.any().refine((file) => file instanceof File, 'file must be a valid File object'),
 });
 
 // Upload route
@@ -96,7 +95,6 @@ app.post(
         fileName: formData.fileName,
         overwrite: formData.overwrite,
         bucket: formData.bucket,
-        file: formData.file,
       };
 
       // Validate with zod
@@ -109,14 +107,19 @@ app.post(
           message: validationResult.error.flatten(),
         }, 400);
       }
-
-      const { path, fileName, overwrite, file } = validationResult.data;
+      const { path, fileName, overwrite } = validationResult.data;
       const options: UploadOptions = {
         path,
         fileName,
         overwrite,
       };
-
+      const file = formData.file;
+      if (!file || !(file instanceof File)) {
+        return c.json({
+          success: false,
+          error: 'File not found or invalid',
+        }, 400);
+      }
       const result = await uploadFile(c, file, options, bucketConfig)
       return c.json(result)
     } catch (error: any) {
