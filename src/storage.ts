@@ -65,8 +65,24 @@ export type UploadOptions = {
 };
 
 function sanitizePath(path: string): string {
-  // Remove leading/trailing slashes and prevent directory traversal
-  return path.replace(/^\/+|\/+$/g, '').replace(/\.\.\//g, '');
+  // Remove leading/trailing slashes and normalize multiple slashes
+  let cleaned = path.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
+
+  // Handle directory traversal by resolving path segments
+  const segments = cleaned.split('/');
+  const resolved: string[] = [];
+
+  for (const segment of segments) {
+    if (segment === '..') {
+      // Go up one directory (remove last segment)
+      resolved.pop();
+    } else if (segment !== '.' && segment !== '') {
+      // Add valid segments (ignore current directory and empty segments)
+      resolved.push(segment);
+    }
+  }
+
+  return resolved.join('/');
 }
 
 /**
@@ -86,14 +102,21 @@ function validatePath(requestedPath: string, allowedPaths: string[]): boolean {
     return allowedPaths.includes('') || allowedPaths.includes('/');
   }
 
-  // Get top-level path
-  const topLevelPath = cleanPath.split('/')[0];
-
-  // Check if it's in the allowed paths
+  // Check if the path is in the allowed paths
   return allowedPaths.some(allowedPath => {
     const cleanAllowedPath = sanitizePath(allowedPath);
-    // Exact match or as a subpath
-    return topLevelPath === cleanAllowedPath || cleanPath.startsWith(cleanAllowedPath + '/');
+
+    // Exact match
+    if (cleanPath === cleanAllowedPath) {
+      return true;
+    }
+
+    // Check if requested path is a subpath of allowed path
+    if (cleanPath.startsWith(cleanAllowedPath + '/')) {
+      return true;
+    }
+
+    return false;
   });
 }
 
