@@ -91,22 +91,98 @@
 
 ## 配置
 
-该服务完全通过环境变量进行配置。请参考 `wrangler.jsonc` 中的注释来进行详细配置。
+### 存储桶配置 (Bucket Configuration)
 
-### 存储桶配置
+从 v2.0 开始，存储桶配置使用 JSON 格式，这让配置更加清晰和易于管理。
 
-| 变量 | 示例值 | 必需 | 描述 |
-| --- | --- | --- | --- |
-| `BUCKET_{name}_*` | | 是 | 用于定义一个存储桶。例如 `BUCKET_main_r2_PROVIDER`。详细配置请看 `wrangler.jsonc`。 |
-| `BUCKET_{name}_ALLOWED_PATHS` | `images,public` | 否 | 允许上传的路径列表，逗号分隔。`*` 表示允许所有路径。 |
-| `BUCKET_{name}_ID_WHITELIST` | `user1-id,user2-id` | 否 | 针对此存储桶的用户ID白名单，逗号分隔。白名单为必填项。 |
+#### 环境变量
 
-### 全局认证配置
+设置 `BUCKET_CONFIGS` 环境变量，值为 JSON 数组：
 
-| 环境变量 | 示例值 | 是否必需 | 描述 |
-| --- | --- | --- | --- |
-| `AUTH_SECRET_KEY` | `a_very_long_and_secure_string` | 是 | 用于验证请求合法性的共享密钥。可以是一个或多个密钥，用逗号分隔。 |
-| `PORT` | `8080` | 否 | Node.js 服务器监听端口（仅限 Docker）。 |
+```bash
+BUCKET_CONFIGS='[
+  {
+    "id": "personal_aws",
+    "name": "个人 AWS 存储",
+    "provider": "AWS_S3",
+    "bucketName": "my-personal-bucket",
+    "accessKeyId": "your-access-key",
+    "secretAccessKey": "your-secret-key",
+    "region": "us-east-1",
+    "endpoint": "https://s3.amazonaws.com",
+    "customDomain": "https://images.example.com",
+    "allowedPaths": ["images", "documents"],
+    "idWhitelist": ["user1", "user2"]
+  },
+  {
+    "id": "main_r2",
+    "name": "主要 R2 存储",
+    "provider": "CLOUDFLARE_R2",
+    "bindingName": "R2_MAIN_BINDING",
+    "customDomain": "https://files.example.com",
+    "allowedPaths": ["*"],
+    "idWhitelist": ["admin"]
+  }
+]'
+```
+
+#### 配置字段说明
+
+- `id`: 存储桶的唯一标识符，用于 API 调用
+- `name`: 用户友好的显示名称（可选）
+- `provider`: 存储提供商，支持 `AWS_S3` 和 `CLOUDFLARE_R2`
+- `bucketName`: 实际的存储桶名称（S3 需要）
+- `accessKeyId`: 访问密钥 ID（S3 需要）
+- `secretAccessKey`: 访问密钥（S3 需要）
+- `region`: 存储桶区域（S3 需要）
+- `endpoint`: 存储桶端点 URL（S3 需要）
+- `customDomain`: 自定义域名（可选）
+- `bindingName`: R2 绑定名称（R2 需要）
+- `allowedPaths`: 允许的路径列表，如 `["images", "documents"]` 或 `["*"]`
+- `idWhitelist`: 用户 ID 白名单
+
+#### 与旧版本的区别
+
+**旧版本（v1.x）：**
+```bash
+# 需要为每个存储桶设置多个环境变量
+BUCKET_wasabi_storage_PROVIDER="AWS_S3"
+BUCKET_wasabi_storage_BUCKET_NAME="my-bucket"
+BUCKET_wasabi_storage_ACCESS_KEY_ID="..."
+BUCKET_wasabi_storage_SECRET_ACCESS_KEY="..."
+# ... 更多环境变量
+```
+
+**新版本（v2.0+）：**
+```bash
+# 只需要一个 JSON 配置
+BUCKET_CONFIGS='[{"id": "wasabi_storage", "provider": "AWS_S3", ...}]'
+```
+
+#### 优势
+
+1. **更清晰的配置**：不再有多个"bucket"概念的混乱
+2. **环境变量更少**：从每个存储桶 10+ 个环境变量减少到 1 个
+3. **更好的可维护性**：JSON 格式更易于理解和管理
+4. **更灵活的结构**：支持嵌套配置和复杂数据类型
+
+### 其他配置
+
+#### 认证配置
+
+```bash
+AUTH_SECRET_KEY="your-secret-key"
+```
+
+#### 可选配置
+
+```bash
+# 服务器端口（仅 Docker）
+PORT="8080"
+
+# 已废弃的全局自定义域名
+CUSTOM_DOMAIN="https://images.example.com"
+```
 
 ---
 

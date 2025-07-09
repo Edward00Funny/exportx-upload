@@ -30,25 +30,25 @@ app.get('/buckets', authMiddleware, async (c) => {
     // If user id is required but not provided, return no buckets
     filteredBuckets = {};
   } else {
-    filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketName, config]) => {
+    filteredBuckets = Object.entries(allBucketsConfig).reduce((acc, [bucketId, config]) => {
       // A bucket is only accessible if it has a whitelist and the user is in it.
       if (config.idWhitelist && config.idWhitelist.includes(userId)) {
-        acc[bucketName] = config;
+        acc[bucketId] = config;
       }
       return acc;
     }, {} as Record<string, typeof allBucketsConfig[string]>);
   }
 
   // Build public configuration information, hiding sensitive data
-  const publicConfig = Object.entries(filteredBuckets).map(([bucketName, config]) => ({
-    name: bucketName,
+  const publicConfig = Object.entries(filteredBuckets).map(([bucketId, config]) => ({
+    id: bucketId,
+    name: config.name || config.bucketName, // Use name, fallback to alias, then id
     provider: config.provider,
     bucketName: config.bucketName,
     region: config.region,
     endpoint: config.endpoint?.replace(/\/+$/, ''), // Remove trailing slashes
     customDomain: config.customDomain?.replace(/\/+$/, ''), // Remove trailing slashes
     bindingName: config.bindingName,
-    alias: config.alias || bucketName, // Use alias or bucket name
     allowedPaths: config.allowedPaths || ['*'], // Return allowed paths
     // Do not return sensitive information like accessKeyId and secretAccessKey
   }));

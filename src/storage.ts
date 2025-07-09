@@ -102,15 +102,15 @@ function validatePath(requestedPath: string, allowedPaths: string[]): boolean {
  */
 export function validateBucketAccess<E extends { Bindings: Bindings }>(
   c: Context<E>,
-  bucketName: string,
+  bucketId: string,
   userId?: string
 ): { isValid: boolean; error?: string; bucketConfig?: BucketConfig } {
   let bucketConfig: BucketConfig;
 
   try {
-    bucketConfig = getBucketConfig(c, bucketName);
+    bucketConfig = getBucketConfig(c, bucketId);
   } catch (error: any) {
-    console.error(`Failed to get config for bucket '${bucketName}':`, error.message);
+    console.error(`Failed to get config for bucket '${bucketId}':`, error.message);
     return {
       isValid: false,
       error: 'Configuration error for the specified bucket.'
@@ -119,7 +119,7 @@ export function validateBucketAccess<E extends { Bindings: Bindings }>(
 
   // check bucket's ID whitelist
   if (!bucketConfig.idWhitelist || bucketConfig.idWhitelist.length === 0) {
-    console.error(`ID whitelist is required for bucket '${bucketName}'`);
+    console.error(`ID whitelist is required for bucket '${bucketId}'`);
     return {
       isValid: false,
       error: 'Service unavailable: ID whitelist not configured for this bucket.'
@@ -144,53 +144,50 @@ export function validateBucketAccess<E extends { Bindings: Bindings }>(
 }
 
 /**
- * Get bucket configuration from environment variables
+ * Get bucket configuration from JSON configuration
  */
-export function getBucketConfig<E extends { Bindings: Bindings }>(c: Context<E>, bucketName: string): BucketConfig {
+export function getBucketConfig<E extends { Bindings: Bindings }>(c: Context<E>, bucketId: string): BucketConfig {
   const envVars = env(c);
 
-  // Build environment variable prefix
-  const prefix = `BUCKET_${bucketName}_`;
-
-  // Read bucket configuration
-  const provider = envVars[`${prefix}PROVIDER`] as 'CLOUDFLARE_R2' | 'AWS_S3';
-  if (!provider) {
-    throw new Error(`Bucket configuration '${bucketName}' not found. Please check if environment variable ${prefix}PROVIDER is set.`);
+  // 获取JSON配置
+  const bucketsConfigJson = envVars.BUCKET_CONFIGS;
+  if (!bucketsConfigJson) {
+    throw new Error('BUCKET_CONFIGS environment variable not found. Please configure your buckets in JSON format.');
   }
 
-  const config: BucketConfig = {
-    provider,
-    bucketName: envVars[`${prefix}BUCKET_NAME`],
-    accessKeyId: envVars[`${prefix}ACCESS_KEY_ID`],
-    secretAccessKey: envVars[`${prefix}SECRET_ACCESS_KEY`],
-    region: envVars[`${prefix}REGION`],
-    endpoint: envVars[`${prefix}ENDPOINT`],
-    customDomain: envVars[`${prefix}CUSTOM_DOMAIN`],
-    bindingName: envVars[`${prefix}BINDING_NAME`], // Only for R2
-    alias: envVars[`${prefix}ALIAS`], // Bucket alias
-    allowedPaths: envVars[`${prefix}ALLOWED_PATHS`] ?
-      envVars[`${prefix}ALLOWED_PATHS`].split(',').map((path: string) => path.trim()) :
-      ['*'], // Default to allow all paths
-    idWhitelist: envVars[`${prefix}ID_WHITELIST`] ?
-      envVars[`${prefix}ID_WHITELIST`].split(',').map((id: string) => id.trim()) :
-      undefined, // Default to undefined if not set
-  };
+  let bucketConfigs: BucketConfig[];
+  try {
+    bucketConfigs = JSON.parse(bucketsConfigJson);
+  } catch (error) {
+    throw new Error('Invalid JSON in BUCKET_CONFIGS environment variable.');
+  }
 
-  // Validate configuration completeness
-  if (provider === 'AWS_S3') {
+  // 查找指定的bucket配置
+  const config = bucketConfigs.find((bucket: BucketConfig) => bucket.id === bucketId);
+  if (!config) {
+    throw new Error(`Bucket configuration with id '${bucketId}' not found.`);
+  }
+
+  // 验证配置完整性
+  if (config.provider === 'AWS_S3') {
     if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
-      throw new Error(`S3 bucket configuration '${bucketName}' is incomplete. Required: ${prefix}ACCESS_KEY_ID, ${prefix}SECRET_ACCESS_KEY, ${prefix}BUCKET_NAME`);
+      throw new Error(`S3 bucket configuration '${bucketId}' is incomplete. Required: accessKeyId, secretAccessKey, bucketName`);
     }
     if (!config.endpoint || !config.region) {
-      throw new Error(`S3 bucket configuration '${bucketName}' is incomplete. Required: ${prefix}ENDPOINT, ${prefix}REGION`);
+      throw new Error(`S3 bucket configuration '${bucketId}' is incomplete. Required: endpoint, region`);
     }
-  } else if (provider === 'CLOUDFLARE_R2') {
+  } else if (config.provider === 'CLOUDFLARE_R2') {
     if (!config.bindingName) {
-      throw new Error(`R2 bucket configuration '${bucketName}' is incomplete. Required: ${prefix}BINDING_NAME`);
+      throw new Error(`R2 bucket configuration '${bucketId}' is incomplete. Required: bindingName`);
     }
   }
 
-  return config;
+  // 设置默认值
+  return {
+    ...config,
+    allowedPaths: config.allowedPaths || ['*'],
+    idWhitelist: config.idWhitelist || undefined
+  };
 }
 
 async function checkR2FileExists(r2Bucket: R2Bucket, key: string): Promise<boolean> {
@@ -312,25 +309,29 @@ export function getAllBucketsConfig<E extends { Bindings: Bindings }>(c: Context
   const envVars = env(c);
   const buckets: Record<string, BucketConfig> = {};
 
-  // Scan all environment variables starting with BUCKET_
-  const bucketNames = new Set<string>();
+  // 获取JSON配置
+  const bucketsConfigJson = envVars.BUCKET_CONFIGS;
+  if (!bucketsConfigJson) {
+    console.warn('BUCKET_CONFIGS environment variable not found.');
+    return buckets;
+  }
 
-  // Extract bucket names from environment variables
-  Object.keys(envVars).forEach(key => {
-    if (key.startsWith('BUCKET_') && key.includes('_PROVIDER')) {
-      const bucketName = key.replace('BUCKET_', '').replace('_PROVIDER', '');
-      bucketNames.add(bucketName);
-    }
-  });
+  try {
+    const bucketConfigs: BucketConfig[] = JSON.parse(bucketsConfigJson);
 
-  // Get configuration for each bucket
-  bucketNames.forEach(bucketName => {
-    try {
-      buckets[bucketName] = getBucketConfig(c, bucketName);
-    } catch (error: any) {
-      console.warn(`Unable to get bucket configuration '${bucketName}':`, error.message);
-    }
-  });
+    bucketConfigs.forEach(config => {
+      if (config.id) {
+        // 移除敏感信息
+        const publicConfig = { ...config };
+        delete publicConfig.accessKeyId;
+        delete publicConfig.secretAccessKey;
+
+        buckets[config.id] = publicConfig;
+      }
+    });
+  } catch (error) {
+    console.warn('Invalid JSON in BUCKET_CONFIGS environment variable.');
+  }
 
   return buckets;
 }

@@ -33,9 +33,9 @@ test('GET /buckets returns only whitelisted buckets for the given user id', asyn
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
 
   (getAllBucketsConfig as Mock).mockReturnValue({
-    'bucket1': { provider: 'CLOUDFLARE_R2', idWhitelist: ['user1-id'] },
-    'bucket2': { provider: 'AWS_S3', idWhitelist: ['user2-id'] },
-    'private_bucket': { provider: 'AWS_S3' } // No whitelist, should not be visible to anyone
+    'bucket1': { id: 'bucket1', provider: 'CLOUDFLARE_R2', idWhitelist: ['user1-id'] },
+    'bucket2': { id: 'bucket2', provider: 'AWS_S3', idWhitelist: ['user2-id'] },
+    'private_bucket': { id: 'private_bucket', provider: 'AWS_S3' } // No whitelist, should not be visible to anyone
   });
 
   const req = new Request('http://localhost/buckets', {
@@ -47,16 +47,16 @@ test('GET /buckets returns only whitelisted buckets for the given user id', asyn
 
   const res = await app.fetch(req);
   expect(res.status).toBe(200);
-  const data = await res.json() as { buckets: { name: string }[] };
+  const data = await res.json() as { buckets: { id: string }[] };
   expect(data.buckets.length).toBe(1);
-  expect(data.buckets[0].name).toBe('bucket1');
+  expect(data.buckets[0].id).toBe('bucket1');
 });
 
 test('GET /buckets returns empty list if user id is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'test-secret');
 
   (getAllBucketsConfig as Mock).mockReturnValue({
-    'bucket1': { provider: 'CLOUDFLARE_R2', idWhitelist: ['user-id'] },
+    'bucket1': { id: 'bucket1', provider: 'CLOUDFLARE_R2', idWhitelist: ['user-id'] },
   });
 
   const req = new Request('http://localhost/buckets', {

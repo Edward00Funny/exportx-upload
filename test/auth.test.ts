@@ -81,8 +81,13 @@ test('authMiddleware should pass through with valid token even when bucket is sp
 test('authMiddleware should pass through with valid token even when bucket config has no id whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
   // Stub bucket config WITHOUT id whitelist
-  vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
-  vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
+  vi.stubEnv('BUCKET_CONFIGS', JSON.stringify([
+    {
+      "id": "test_bucket",
+      "provider": "CLOUDFLARE_R2",
+      "bindingName": "R2_BUCKET"
+    }
+  ]))
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -99,9 +104,14 @@ test('authMiddleware should pass through with valid token even when bucket confi
 
 test('authMiddleware should pass through with valid token even when user id is not provided', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
-  vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
-  vi.stubEnv('BUCKET_test_bucket_ID_WHITELIST', 'test-user-id')
+  vi.stubEnv('BUCKET_CONFIGS', JSON.stringify([
+    {
+      "id": "test_bucket",
+      "provider": "CLOUDFLARE_R2",
+      "bindingName": "R2_BUCKET",
+      "idWhitelist": ["test-user-id"]
+    }
+  ]))
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -117,9 +127,14 @@ test('authMiddleware should pass through with valid token even when user id is n
 
 test('authMiddleware should pass through with valid token even when user id is not in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
-  vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
-  vi.stubEnv('BUCKET_test_bucket_ID_WHITELIST', 'test-user-id')
+  vi.stubEnv('BUCKET_CONFIGS', JSON.stringify([
+    {
+      "id": "test_bucket",
+      "provider": "CLOUDFLARE_R2",
+      "bindingName": "R2_BUCKET",
+      "idWhitelist": ["test-user-id"]
+    }
+  ]))
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)
@@ -138,9 +153,14 @@ test('authMiddleware should pass through with valid token even when user id is n
 
 test('authMiddleware should call next() for valid token and user id in bucket whitelist', async ({ expect }) => {
   vi.stubEnv('AUTH_SECRET_KEY', 'secret1')
-  vi.stubEnv('BUCKET_test_bucket_PROVIDER', 'CLOUDFLARE_R2')
-  vi.stubEnv('BUCKET_test_bucket_BINDING_NAME', 'R2_BUCKET')
-  vi.stubEnv('BUCKET_test_bucket_ID_WHITELIST', 'test-user-id')
+  vi.stubEnv('BUCKET_CONFIGS', JSON.stringify([
+    {
+      "id": "test_bucket",
+      "provider": "CLOUDFLARE_R2",
+      "bindingName": "R2_BUCKET",
+      "idWhitelist": ["test-user-id"]
+    }
+  ]))
 
   const app = new Hono<TestEnv>()
   app.use('*', authMiddleware)

@@ -3,25 +3,40 @@ export type Bindings = {
   [key: string]: any;
 
   /**
-   * Dynamic bucket configuration - using prefix pattern
-   * Format: BUCKET_{logical_name}_{attribute_name}
+   * Bucket configuration using JSON format
+   * 
+   * Set BUCKET_CONFIGS environment variable with JSON array:
    * 
    * Example configuration:
-   * - BUCKET_personal_aws_PROVIDER: "AWS_S3"
-   * - BUCKET_personal_aws_ACCESS_KEY_ID: "..."
-   * - BUCKET_personal_aws_SECRET_ACCESS_KEY: "..."
-   * - BUCKET_personal_aws_BUCKET_NAME: "my-bucket"
-   * - BUCKET_personal_aws_REGION: "us-east-1"
-   * - BUCKET_personal_aws_ENDPOINT: "https://s3.amazonaws.com"
-   * - BUCKET_personal_aws_CUSTOM_DOMAIN: "https://images.example.com"
-   * - BUCKET_personal_aws_ALIAS: "Personal Image Storage"
-   * - BUCKET_personal_aws_ALLOWED_PATHS: "images,documents,uploads"
+   * BUCKET_CONFIGS='[
+   *   {
+   *     "id": "personal_aws",
+   *     "name": "Personal AWS Storage",
+   *     "provider": "AWS_S3",
+   *     "bucketName": "my-personal-bucket",
+   *     "accessKeyId": "your-access-key",
+   *     "secretAccessKey": "your-secret-key",
+   *     "region": "us-east-1",
+   *     "endpoint": "https://s3.amazonaws.com",
+   *     "customDomain": "https://images.example.com",
+   *     "allowedPaths": ["images", "documents"],
+   *     "idWhitelist": ["user1", "user2"]
+   *   },
+   *   {
+   *     "id": "main_r2",
+   *     "name": "Main R2 Storage",
+   *     "provider": "CLOUDFLARE_R2",
+   *     "bindingName": "R2_MAIN_BINDING",
+   *     "customDomain": "https://files.example.com",
+   *     "allowedPaths": ["*"],
+   *     "idWhitelist": ["admin"]
+   *   }
+   * ]'
    * 
-   * - BUCKET_main_r2_PROVIDER: "CLOUDFLARE_R2"
-   * - BUCKET_main_r2_BINDING_NAME: "R2_MAIN_BINDING"
-   * - BUCKET_main_r2_ALIAS: "Main File Storage"
-   * - BUCKET_main_r2_ALLOWED_PATHS: "*" or "public,assets"
+   * This replaces the old environment variable pattern:
+   * BUCKET_{logical_name}_{attribute_name}
    */
+  BUCKET_CONFIGS?: string;
 
   /**
    * Cloudflare R2 Bucket bindings (dynamic bindings)
@@ -55,6 +70,8 @@ export type Bindings = {
  * Configuration information for a single bucket
  */
 export type BucketConfig = {
+  id: string; // Unique identifier for the bucket configuration
+  name?: string; // User-friendly display name
   provider: 'CLOUDFLARE_R2' | 'AWS_S3';
   bucketName?: string;
   accessKeyId?: string;
@@ -63,7 +80,6 @@ export type BucketConfig = {
   endpoint?: string;
   customDomain?: string;
   bindingName?: string; // Only for Cloudflare R2
-  alias?: string; // Bucket alias for user-friendly display
   allowedPaths?: string[]; // List of allowed paths, e.g. ["images", "documents"] or ["*"] for all paths
   idWhitelist?: string[]; // ID whitelist for this bucket
 };
