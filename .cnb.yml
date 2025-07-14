@@ -13,37 +13,38 @@
 
 main:
   push:
-    - services:
-        - docker
-      stages:
-        - name: test
-          image: node:22-alpine
-          script: |
-            npm i -g pnpm
-            pnpm install
-            pnpm test
+    builder-docker:
+      - services:
+          - docker
+        stages:
+          - name: test
+            image: node:22-alpine
+            script: |
+              npm i -g pnpm
+              pnpm install
+              pnpm test
 
-        - name: auto-tag
-          image: cnbcool/git-auto-tag:latest
-          settings:
-            tagFormat: v\${version}
-            dryRun: false
-            blockWhenFail: false
-            branch: $CNB_BRANCH
-            repoUrlHttps: $CNB_REPO_URL_HTTPS
-          exports:
-            tag: NEW_TAG
-        - name: show tag
-          script: echo $NEW_TAG
-        - name: docker build
-          script: docker build -t exportxabfree/exportx-upload:dev .
-        - name: docker login
-          imports:
-            - https://cnb.cool/hututux/env/-/blob/main/docker/exportxabfree.yml
-          script: docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-        - name: docker push
-          script: docker push exportxabfree/exportx-upload:dev
-    - name: build scf
+          - name: auto-tag
+            image: cnbcool/git-auto-tag:latest
+            settings:
+              tagFormat: v\${version}
+              dryRun: false
+              blockWhenFail: false
+              branch: $CNB_BRANCH
+              repoUrlHttps: $CNB_REPO_URL_HTTPS
+            exports:
+              tag: NEW_TAG
+          - name: show tag
+            script: echo $NEW_TAG
+          - name: docker build
+            script: docker build -t exportxabfree/exportx-upload:dev .
+          - name: docker login
+            imports:
+              - https://cnb.cool/hututux/env/-/blob/main/docker/exportxabfree.yml
+            script: docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+          - name: docker push
+            script: docker push exportxabfree/exportx-upload:dev
+    builder-scf:
       services:
         - docker
       docker:
@@ -59,7 +60,7 @@ main:
             coscli config set --secret_id $TENCENT_SECRET_ID --secret_key $TENCENT_SECRET_KEY 
             coscli config add --init-skip=true -b $TENCENT_BUCKET -r $TENCENT_REGION
             coscli cp ./scf-package.zip cos://$TENCENT_BUCKET -r
-    - sync_to_github:
+    sync_to_github:
       <<: *sync_to_github
       
  
