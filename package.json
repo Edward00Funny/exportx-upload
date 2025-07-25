@@ -6,7 +6,7 @@
 		"dev:node": "tsx watch src/adaptors/server.ts",
 		"deploy": "wrangler deploy src/adaptors/worker.ts",
 		"build": "rm -rf dist && tsc",
-		"start": "node dist/adaptors/server.js",
+		"start": "node dist/src/adaptors/server.js",
 		"test": "vitest run",
 		"coverage": "vitest run --coverage",
 		"cf-typegen": "wrangler types",
